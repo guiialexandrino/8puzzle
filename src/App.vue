@@ -1,19 +1,19 @@
 <template>
   <v-app>
     <v-main>
-      <HelloWorld />
+      <EightPuzzle />
     </v-main>
   </v-app>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld';
+import EightPuzzle from './components/8Puzzle';
 
 export default {
   name: 'App',
 
   components: {
-    HelloWorld,
+    EightPuzzle,
   },
 
   data: () => ({
