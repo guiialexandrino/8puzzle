@@ -231,11 +231,11 @@ export default {
         ],
       },
       {
-        label: 'Exemplo - 23 movimentos',
+        label: 'Exemplo - 24 movimentos',
         puzzle: [
-          ['7', '1', '2'],
-          ['3', '4', '5'],
-          ['6', '', '8'],
+          ['6', '5', '1'],
+          ['3', '', '8'],
+          ['2', '7', '4'],
         ],
       },
     ],
