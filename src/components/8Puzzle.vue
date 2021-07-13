@@ -652,8 +652,7 @@ export default {
         }
       }
 
-      if (this.type == 'uniformCost' && !primeiroMaior.value)
-        primeiroMaior.index = array.length; // adiciona no começo da array
+      if (!primeiroMaior.value) primeiroMaior.index = array.length; // adiciona no começo da array
       array.splice(primeiroMaior.index, 0, item);
     },
   },
