@@ -81,7 +81,7 @@
           <span
             v-html="
               puzzle.cost == 0
-                ? `<b>Desafio</b>`
+                ? `<b>Desafio/Custo:</b> ${puzzle.cost}`
                 : `<b>Custo</b>: ${puzzle.cost}`
             "
           />
@@ -92,6 +92,15 @@
           <span v-if="type == 'bestA*'"
             ><b>Melhor Heuristica:</b> {{ puzzle.heuristic2 }}</span
           >
+          <span v-if="type == 'bestA*' || type == 'a*'">
+            <br />
+            <span v-if="type == 'a*'"
+              ><b>Total:</b> {{ puzzle.cost + puzzle.heuristic1 }}</span
+            >
+            <span v-if="type == 'bestA*'"
+              ><b>Total:</b> {{ puzzle.cost + puzzle.heuristic2 }}</span
+            >
+          </span>
           <v-icon
             v-if="index < finalPath.length - 1"
             style="position: absolute; right: 0; top: 50%"

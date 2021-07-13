@@ -29,7 +29,7 @@
               :disabled="start"
               class="px-4"
               v-model="selectedChallenge"
-              :items="challenges"
+              :items="challengeByAlgorithm"
               item-text="label"
               item-value="puzzle"
             />
@@ -180,6 +180,7 @@ export default {
       { type: 'bestA*', label: 'Melhor A*' },
     ],
     //Selecionar exemplo
+    challengeByAlgorithm: [],
     challenges: [
       {
         label: 'Exemplo - 2 movimentos',
@@ -258,6 +259,10 @@ export default {
     alert: false,
   }),
   created() {
+    this.challengeByAlgorithm.push(this.challenges[0]);
+    this.challengeByAlgorithm.push(this.challenges[1]);
+    this.challengeByAlgorithm.push(this.challenges[2]);
+    this.challengeByAlgorithm.push(this.challenges[3]);
     this.selectedChallenge = this.challenges[0].puzzle;
     this.frontier.push({
       cost: 0,
@@ -268,6 +273,49 @@ export default {
     });
   },
   watch: {
+    type() {
+      if (this.type == 'uniformCost') {
+        this.challengeByAlgorithm = [];
+        this.challengeByAlgorithm.push(this.challenges[0]);
+        this.challengeByAlgorithm.push(this.challenges[1]);
+        this.challengeByAlgorithm.push(this.challenges[2]);
+        this.challengeByAlgorithm.push(this.challenges[3]);
+
+        let check = 0;
+        this.challengeByAlgorithm.forEach((item) => {
+          if (item.puzzle.toString() === this.selectedChallenge.toString())
+            check++;
+        });
+
+        if (check == 0) this.selectedChallenge = this.challenges[0].puzzle;
+      }
+      if (this.type == 'a*') {
+        this.challengeByAlgorithm = [];
+        this.challengeByAlgorithm.push(this.challenges[0]);
+        this.challengeByAlgorithm.push(this.challenges[1]);
+        this.challengeByAlgorithm.push(this.challenges[2]);
+        this.challengeByAlgorithm.push(this.challenges[3]);
+        this.challengeByAlgorithm.push(this.challenges[4]);
+
+        let check = 0;
+        this.challengeByAlgorithm.forEach((item) => {
+          if (item.puzzle.toString() === this.selectedChallenge.toString())
+            check++;
+        });
+
+        if (check == 0) this.selectedChallenge = this.challenges[0].puzzle;
+      }
+      if (this.type == 'bestA*') {
+        this.challengeByAlgorithm = [];
+        this.challengeByAlgorithm.push(this.challenges[0]);
+        this.challengeByAlgorithm.push(this.challenges[1]);
+        this.challengeByAlgorithm.push(this.challenges[2]);
+        this.challengeByAlgorithm.push(this.challenges[3]);
+        this.challengeByAlgorithm.push(this.challenges[4]);
+        this.challengeByAlgorithm.push(this.challenges[5]);
+        this.challengeByAlgorithm.push(this.challenges[6]);
+      }
+    },
     selectedChallenge() {
       this.frontier = [];
       this.frontier.push({
