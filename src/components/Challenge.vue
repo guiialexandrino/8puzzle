@@ -3,7 +3,7 @@
   <v-row
     justify="center"
     class="grey lighten-4"
-    style="width:70%; font-size: 1.2rem"
+    style="width:70%; font-size: 1.2rem; position: relative"
   >
     <v-col cols="12" class="white"><b>Desafio</b></v-col>
     <v-col
@@ -27,6 +27,18 @@
       :class="linha3 == '' && 'red lighten-4'"
       >{{ linha3 }}
     </v-col>
+    <v-tooltip color="grey darken-2" bottom nudge-bottom="-8">
+      <template v-slot:activator="{ on }">
+        <v-icon
+          v-on="on"
+          color="grey darken-2"
+          style="position: absolute; top: 7%; right: 0"
+          @click="customPuzzle"
+          >mdi-pencil</v-icon
+        >
+      </template>
+      <span>Puzzle Personalizado</span>
+    </v-tooltip>
   </v-row>
   <!-- Fim Desafio -->
 </template>
@@ -40,6 +52,11 @@ export default {
       default: () => {
         return [];
       },
+    },
+  },
+  methods: {
+    customPuzzle() {
+      this.$emit('customPuzzle');
     },
   },
 };

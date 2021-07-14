@@ -11,6 +11,20 @@
             >Desenvolvido por: <b>Guilherme Alexandrino</b></span
           >
         </p>
+        <v-row justify="center" no-gutters class="mt-8 mb-4"
+          ><v-icon class="pr-2 pb-5" small>mdi-cog</v-icon
+          ><span>
+            <b>Nº máximo de iterações: </b>
+          </span>
+          <v-select
+            :disabled="type == 'bestA*'"
+            style="max-width:5%; min-width: 80px"
+            class="pl-2 ma-0"
+            v-model="iterations"
+            :items="iterationOptions"
+            dense
+          />
+        </v-row>
         <v-row justify="center" no-gutters>
           <v-col cols="6" sm="6" md="4" lg="4" xl="3">
             <v-select
@@ -33,7 +47,10 @@
               item-text="label"
               item-value="puzzle"
             />
-            <Challenge :selectedChallenge="selectedChallenge" />
+            <Challenge
+              :selectedChallenge="selectedChallenge"
+              @customPuzzle="customPuzzle"
+            />
           </v-col>
         </v-row>
       </v-col>
@@ -61,6 +78,23 @@
           >Resetar</v-btn
         >
       </v-col>
+    </v-row>
+    <v-row no-gutters justify="center" style="font-size:0.85rem">
+      <span v-if="type == 'uniformCost' && !done">
+        <b>**Atenção**</b> desafios em <u>Custo Uniforme</u> com
+        <b>mais de 11 movimentos</b> tendem a demorar, é necessário aumentar o
+        nª máximo de iterações.
+      </span>
+      <span v-if="type == 'a*' && !done">
+        <b>**Atenção**</b> desafios em <u>A* Heuristica Simples</u> com
+        <b>mais de 17 movimentos</b> tendem a demorar, é necessário aumentar o
+        nª máximo de iterações.
+      </span>
+      <span v-if="type == 'bestA*' && !done">
+        <b>**Atenção**</b> desafios em <u>Melhor A*</u> com
+        <b>mais de 24 movimentos</b> podem levar vários minutos para encontrar a
+        solução.
+      </span>
     </v-row>
     <v-row justify="center" class="mt-6" style="font-size: 1.2rem"
       ><v-col align="center" cols="6" sm="6" md="4" lg="4" xl="3"
@@ -91,7 +125,7 @@
           {{ showPathInfo ? 'Esconder Caminho' : 'Mostrar Caminho' }}
         </v-btn>
         <v-btn
-          :disabled="!done"
+          :disabled="iterator > 2000"
           small
           rounded
           outlined
@@ -108,10 +142,11 @@
       </v-col>
     </v-row>
     <!-- RESULTADO DETALHES -->
-    <v-row v-if="done" justify="center" class="mt-12">
+    <v-row v-if="done" justify="center" class="mt-12 mb-2">
       <span class="mx-2"><b>Nodos na Fronteira:</b> {{ frontier.length }}</span>
       <span class="mx-2"><b>Nodos Criados:</b> {{ createdNodes }}</span>
       <span class="mx-2"><b>Nodos Visitados:</b> {{ visitedNodes }}</span>
+      <span class="mx-2"><b>Tempo resolução:</b> {{ elapsedTime }}</span>
     </v-row>
 
     <!-- CAMINHO -->
@@ -142,9 +177,9 @@
         >
         <p>
           <span
-            ><b>Ops...</b> parece que esse desafio <b>vai demorar muito :(</b
-            ><br />Tente utilizando <b>outro algoritmo</b>, ok?</span
-          >
+            ><b>Ops...</b> a busca atingiu o <b>limite máx de iterações</b> e
+            não conseguiu encontrar uma solução para esse desafio :( <br
+          /></span>
         </p>
         <v-btn
           rounded
@@ -153,6 +188,54 @@
           color="yellow darken-2"
           @click="alert = false"
           >Ok</v-btn
+        >
+      </v-card>
+    </v-dialog>
+    <!-- customPuzzle -->
+    <v-dialog v-model="customDialog" retain-focus persistent width="500px">
+      <v-card class="pa-6" align="center">
+        <v-icon
+          style="transform: scale(1.3);"
+          class="mb-3"
+          x-large
+          color="green lighten-2"
+          >mdi-puzzle-edit</v-icon
+        >
+        <br />
+        <span style="font-size: 1.2rem"><b>Desafio Personalizado</b></span>
+        <br />
+        <br />
+        <p>
+          <span
+            >Para representar a casa sem número digite 0 no lugar.<br />Um
+            <b>exemplo válido</b> de desafio é "123405786" <br
+          /></span>
+        </p>
+        <v-text-field
+          style="max-width: 70%"
+          :counter="9"
+          :error="false"
+          :error-messages="errorMessage"
+          maxlength="9"
+          v-model="newCustomPuzzle"
+          @keypress="validation($event)"
+        ></v-text-field>
+        <v-btn
+          :disabled="newCustomPuzzle.length < 9"
+          rounded
+          class="mt-4 mr-2 white--text"
+          elevation="0"
+          color="green lighten-2"
+          @click="validationCustomPuzzle"
+          >Pronto</v-btn
+        >
+        <v-btn
+          rounded
+          class="mt-4"
+          elevation="0"
+          outlined
+          @click="customDialog = false"
+          >Cancelar</v-btn
         >
       </v-card>
     </v-dialog>
@@ -238,6 +321,22 @@ export default {
           ['2', '7', '4'],
         ],
       },
+      {
+        label: 'Exemplo - 27 movimentos',
+        puzzle: [
+          ['4', '7', '5'],
+          ['', '2', '1'],
+          ['3', '6', '8'],
+        ],
+      },
+      {
+        label: 'Exemplo - 31 movimentos',
+        puzzle: [
+          ['6', '4', '7'],
+          ['8', '5', ''],
+          ['3', '2', '1'],
+        ],
+      },
     ],
     selectedChallenge: [],
     defaultCost: 1,
@@ -256,7 +355,13 @@ export default {
     done: false,
     resolution: [],
     iterator: 0,
+    iterations: 2000,
+    iterationOptions: [2000, 3000, 4000, 5000, 10000, 30000],
     alert: false,
+    customDialog: false,
+    newCustomPuzzle: '',
+    errorMessage: '',
+    elapsedTime: '',
   }),
   created() {
     this.challengeByAlgorithm.push(this.challenges[0]);
@@ -276,6 +381,7 @@ export default {
     type() {
       if (this.type == 'uniformCost') {
         this.challengeByAlgorithm = [];
+        this.iterations = 2000;
         this.challengeByAlgorithm.push(this.challenges[0]);
         this.challengeByAlgorithm.push(this.challenges[1]);
         this.challengeByAlgorithm.push(this.challenges[2]);
@@ -290,6 +396,7 @@ export default {
         if (check == 0) this.selectedChallenge = this.challenges[0].puzzle;
       }
       if (this.type == 'a*') {
+        this.iterations = 2000;
         this.challengeByAlgorithm = [];
         this.challengeByAlgorithm.push(this.challenges[0]);
         this.challengeByAlgorithm.push(this.challenges[1]);
@@ -307,6 +414,7 @@ export default {
       }
       if (this.type == 'bestA*') {
         this.challengeByAlgorithm = [];
+        this.iterations = 30000;
         this.challengeByAlgorithm.push(this.challenges[0]);
         this.challengeByAlgorithm.push(this.challenges[1]);
         this.challengeByAlgorithm.push(this.challenges[2]);
@@ -314,6 +422,8 @@ export default {
         this.challengeByAlgorithm.push(this.challenges[4]);
         this.challengeByAlgorithm.push(this.challenges[5]);
         this.challengeByAlgorithm.push(this.challenges[6]);
+        this.challengeByAlgorithm.push(this.challenges[7]);
+        this.challengeByAlgorithm.push(this.challenges[8]);
       }
     },
     selectedChallenge() {
@@ -329,9 +439,58 @@ export default {
   },
 
   methods: {
+    customPuzzle() {
+      this.customDialog = true;
+    },
+    validation($event) {
+      let keyCode = $event.keyCode ? $event.keyCode : $event.which;
+      // only allow numbers
+      if (keyCode < 48 || keyCode > 56) {
+        $event.preventDefault();
+      }
+    },
+    validationCustomPuzzle() {
+      let set = new Set();
+      let check = 0;
+      let numbers = this.newCustomPuzzle.toString();
+      for (let i = 0; i < numbers.length; i++) {
+        if (!set.has(numbers[i])) {
+          check++;
+          set.add(numbers[i]);
+        }
+      }
+      if (check == 9 && numbers !== '123456780') {
+        this.errorMessage = '';
+        this.selectedChallenge = [
+          [
+            numbers[0] !== '0' ? numbers[0] : '',
+            numbers[1] !== '0' ? numbers[1] : '',
+            numbers[2] !== '0' ? numbers[2] : '',
+          ],
+          [
+            numbers[3] !== '0' ? numbers[3] : '',
+            numbers[4] !== '0' ? numbers[4] : '',
+            numbers[5] !== '0' ? numbers[5] : '',
+          ],
+          [
+            numbers[6] !== '0' ? numbers[6] : '',
+            numbers[7] !== '0' ? numbers[7] : '',
+            numbers[8] !== '0' ? numbers[8] : '',
+          ],
+        ];
+
+        this.challengeByAlgorithm.push({
+          label: `Personalizado - ${numbers}`,
+          puzzle: this.selectedChallenge,
+        });
+        this.customDialog = false;
+      } else {
+        this.errorMessage = 'Puzzle personalizado inválido.';
+      }
+    },
     handleReset() {
       this.start = false;
-      // this.selectedChallenge = this.challenges[0].puzzle;
+      this.selectedChallenge = this.challenges[0].puzzle;
       this.frontier = [];
       this.frontier.push({
         cost: 0,
@@ -350,6 +509,8 @@ export default {
       this.showFrontierInfo = false;
       this.resolution = [];
       this.iterator = 0;
+      this.newCustomPuzzle = '';
+      this.errorMessage = '';
     },
 
     handleNextStepResolution() {
@@ -379,11 +540,12 @@ export default {
 
     handleStart() {
       this.start = true;
+      let timeStart = new Date().getTime();
       while (this.frontier[0].puzzle.toString() !== this.meta.toString()) {
         this.iterator++;
         let coordenates = this.foundEmptySpace(this.frontier[0]);
         this.checkMovements(coordenates, this.frontier[0]);
-        if (this.iterator > 2000) {
+        if (this.iterator > this.iterations) {
           this.alert = true;
           return;
         }
@@ -399,6 +561,22 @@ export default {
         this.visitedNodes++;
         this.frontier.splice(0, 1); // deleta o primeiro da fronteira
       }
+
+      //Calcular o tempo
+      let timeEnd = new Date().getTime();
+      let finalTime = timeEnd - timeStart; // tempo decorrido em milisegundos
+      console.log(finalTime);
+      if (finalTime > 1000) {
+        let minutes = Math.floor(finalTime / 60000);
+        let seconds = ((finalTime % 60000) / 1000).toFixed(0);
+        if (minutes > 0)
+          this.elapsedTime =
+            minutes + ' min e ' + (seconds < 10 ? '0' : '') + seconds + 'sec';
+        if (minutes == 0) this.elapsedTime = seconds + ' sec';
+      } else {
+        this.elapsedTime = `${finalTime} milisec.`;
+      }
+      console.log(this.elapsedTime);
     },
 
     // Métodos para o ALGORITMO
