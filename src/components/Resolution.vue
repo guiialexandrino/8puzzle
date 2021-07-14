@@ -1,7 +1,9 @@
 <template>
   <!-- Desafio -->
   <v-row style="position: relative" class="green lighten-5">
-    <v-col cols="12" class="white"><b>Resolução passo-passo</b></v-col>
+    <v-col cols="12" class="white"
+      ><b>Resolução passo-passo ({{ finalPath.length - 1 }})</b></v-col
+    >
     <v-col
       v-for="linha1 in resolution.puzzle[0]"
       :key="linha1"
@@ -50,6 +52,12 @@ export default {
       type: Object,
       default: () => {
         return {};
+      },
+    },
+    finalPath: {
+      type: Array,
+      default: () => {
+        return [];
       },
     },
     meta: {

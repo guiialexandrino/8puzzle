@@ -102,6 +102,7 @@
           v-if="done"
           :resolution="resolution"
           :meta="meta"
+          :finalPath="finalPath"
           @nextStep="handleNextStepResolution"
           @previousStep="handlePreviousStepResolution"/></v-col
     ></v-row>
@@ -143,7 +144,9 @@
     </v-row>
     <!-- RESULTADO DETALHES -->
     <v-row v-if="done" justify="center" class="mt-12 mb-2">
-      <span class="mx-2"><b>Nodos na Fronteira:</b> {{ frontier.length }}</span>
+      <span class="mx-2">
+        <b>Máx Nodos na Fronteira:</b> {{ maxFrontier }}
+      </span>
       <span class="mx-2"><b>Nodos Criados:</b> {{ createdNodes }}</span>
       <span class="mx-2"><b>Nodos Visitados:</b> {{ visitedNodes }}</span>
     </v-row>
@@ -357,6 +360,7 @@ export default {
     visitedNodes: 0,
     createdNodes: 0,
     frontier: [],
+    maxFrontier: 0,
     historyVisited: [],
     finalPath: [],
     visited: new Set(), // guardar os nodos visitados em .toString() para comparação
@@ -389,6 +393,7 @@ export default {
       heuristic1: this.useHeuristic1(this.selectedChallenge),
       heuristic2: this.useHeuristic2(this.selectedChallenge),
     });
+    this.maxFrontier = 1;
   },
 
   watch: {
@@ -453,6 +458,7 @@ export default {
         heuristic1: this.useHeuristic1(this.selectedChallenge),
         heuristic2: this.useHeuristic2(this.selectedChallenge),
       });
+      this.maxFrontier = 1;
     },
   },
 
@@ -518,6 +524,7 @@ export default {
       this.start = false;
       this.selectedChallenge = this.challenges[0].puzzle;
       this.frontier = [];
+      this.maxFrontier = 0;
       this.frontier.push({
         cost: 0,
         puzzle: this.selectedChallenge,
@@ -577,21 +584,20 @@ export default {
         while (this.frontier[0].puzzle.toString() !== this.meta.toString()) {
           this.iterator++;
 
-          // o método foundEmptySpace, retorna os indices na matriz do espaço em branco do primeiro item da fronteira
           let coordenates = this.foundEmptySpace(this.frontier[0]);
 
-          // o método checkMovements, recebe a coordenada do espaço vazio e calcula os movimentos que ele pode fazer, ou seja: up, down, left, right; também é nele que a nova combinação formada pela movimentação das peças é adicionada a fronteira.
           this.checkMovements(coordenates, this.frontier[0]);
 
-          // se o numero de iterações realizado no while, for maior do que o selecionado na interface ele encerra a busca
           if (this.iterator > this.iterations) {
             this.loading = false;
             this.alert = true;
             return;
           }
 
-          //ele é responsável por ordenar a fronteira pelo custo
           this.lowestCost();
+
+          if (this.frontier.length > this.maxFrontier)
+            this.maxFrontier = this.frontier.length;
         }
 
         // se o primeiro item da fronteira for igual ao objetivo ele encerra a busca e retorna os resultados
