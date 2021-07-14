@@ -262,6 +262,7 @@ export default {
     Loading,
   },
   data: () => ({
+    // VARIÁVEIS GLOBAIS
     start: false,
     showPathInfo: false,
     showFrontierInfo: false,
@@ -271,7 +272,6 @@ export default {
       { type: 'a*', label: 'A* - Heurística Simples' },
       { type: 'bestA*', label: 'Melhor A*' },
     ],
-    //Selecionar exemplo
     challengeByAlgorithm: [],
     challenges: [
       {
@@ -374,7 +374,9 @@ export default {
     loading: false,
     timeToDone: 0,
   }),
+
   created() {
+    //FRONTEND
     this.challengeByAlgorithm.push(this.challenges[0]);
     this.challengeByAlgorithm.push(this.challenges[1]);
     this.challengeByAlgorithm.push(this.challenges[2]);
@@ -388,7 +390,10 @@ export default {
       heuristic2: this.useHeuristic2(this.selectedChallenge),
     });
   },
+
   watch: {
+    //FRONTEND
+    //Observa o tipo de busca escolhido pelo usuário e atualiza os desafios exemplos e iteraçoes
     type() {
       if (this.type == 'uniformCost') {
         this.challengeByAlgorithm = [];
@@ -437,6 +442,8 @@ export default {
         this.challengeByAlgorithm.push(this.challenges[8]);
       }
     },
+
+    //ao selecionar o desafio, ele calcula dados iniciais e envia a fila da fronteira - é o o ponto de partida para a busca
     selectedChallenge() {
       this.frontier = [];
       this.frontier.push({
@@ -450,9 +457,13 @@ export default {
   },
 
   methods: {
+    /* FRONTEND MÉTODOS - métodos referentes a interação com a tela e usuário */
+
     customPuzzle() {
       this.customDialog = true;
     },
+
+    //permite digitar apenas: 012345678 - no Puzzle personalziado
     validation($event) {
       let keyCode = $event.keyCode ? $event.keyCode : $event.which;
       // only allow numbers
@@ -460,6 +471,8 @@ export default {
         $event.preventDefault();
       }
     },
+
+    // valida o valor do Puzzle informado pelo usuario ao personalizar
     validationCustomPuzzle() {
       let set = new Set();
       let check = 0;
@@ -499,6 +512,8 @@ export default {
         this.errorMessage = 'Puzzle personalizado inválido.';
       }
     },
+
+    // ao clicar no botão reset, zera todas as informações
     handleReset() {
       this.start = false;
       this.selectedChallenge = this.challenges[0].puzzle;
@@ -549,25 +564,38 @@ export default {
       }
     },
 
+    // Clica no botão "Resolver" chama os métodos de lógica do algoritmo
+
     handleStart() {
       this.loading = true;
       this.start = true;
 
       setTimeout(() => {
         let timeStart = new Date().getTime();
+
+        //enquanto o primeiro elemento da fronteira for diferente do objetivo, o laço é realizado
         while (this.frontier[0].puzzle.toString() !== this.meta.toString()) {
           this.iterator++;
+
+          // o método foundEmptySpace, retorna os indices na matriz do espaço em branco do primeiro item da fronteira
           let coordenates = this.foundEmptySpace(this.frontier[0]);
+
+          // o método checkMovements, recebe a coordenada do espaço vazio e calcula os movimentos que ele pode fazer, ou seja: up, down, left, right; também é nele que a nova combinação formada pela movimentação das peças é adicionada a fronteira.
           this.checkMovements(coordenates, this.frontier[0]);
+
+          // se o numero de iterações realizado no while, for maior do que o selecionado na interface ele encerra a busca
           if (this.iterator > this.iterations) {
             this.loading = false;
             this.alert = true;
             return;
           }
+
+          //ele é responsável por ordenar a fronteira pelo custo
           this.lowestCost();
         }
+
+        // se o primeiro item da fronteira for igual ao objetivo ele encerra a busca e retorna os resultados
         if (this.frontier[0].puzzle.toString() === this.meta.toString()) {
-          // concluiu o objetivo!
           this.done = true;
           this.visited.add(this.frontier[0].puzzle.toString());
           this.historyVisited.push(this.frontier[0]);
@@ -576,7 +604,8 @@ export default {
           this.visitedNodes++;
           this.frontier.splice(0, 1); // deleta o primeiro da fronteira
         }
-        //Calcular o tempo
+
+        //Calcular o tempo de execução, pode ser visto no console do navegador (apertando f12)
         let timeEnd = new Date().getTime();
         let finalTime = timeEnd - timeStart; // tempo decorrido em milisegundos
         this.timeToDone = finalTime;
@@ -627,6 +656,7 @@ export default {
         });
     },
 
+    // procura onde está espaço em branco da matriz e retorna seu indice
     foundEmptySpace(firstFrontier) {
       let x, y;
       firstFrontier.puzzle.forEach((line, index) => {
@@ -640,10 +670,18 @@ export default {
       return { x: x, y: y };
     },
 
+    /* 1- checa os movimentos possiveis de serem realizados,
+
+    2- método: checkPuzzleAlreadyCreated() -> checa se o nodo criado com o movimento(up,down,left,right) já está na fronteira ou na lista de nodos visitados
+
+    3- adiciona o nodo a lista fronteira
+    */
+
     checkMovements(coordenate, challenge) {
       let nodeUp, nodeLeft, nodeRight, nodeDown;
+
+      //UP
       if (coordenate.x > 0) {
-        //UP
         nodeUp = JSON.parse(JSON.stringify(challenge));
         nodeUp.puzzle[coordenate.x][coordenate.y] =
           nodeUp.puzzle[coordenate.x - 1][coordenate.y];
@@ -664,8 +702,9 @@ export default {
           this.createdNodes++;
         }
       }
+
+      //Down
       if (coordenate.x < 2) {
-        //Down
         nodeDown = JSON.parse(JSON.stringify(challenge));
         nodeDown.puzzle[coordenate.x][coordenate.y] =
           nodeDown.puzzle[coordenate.x + 1][coordenate.y];
@@ -686,8 +725,9 @@ export default {
           this.createdNodes++;
         }
       }
+
+      //Left
       if (coordenate.y > 0) {
-        //Left
         nodeLeft = JSON.parse(JSON.stringify(challenge));
         nodeLeft.puzzle[coordenate.x][coordenate.y] =
           nodeLeft.puzzle[coordenate.x][coordenate.y - 1];
@@ -708,8 +748,9 @@ export default {
           this.createdNodes++;
         }
       }
+
+      //Right
       if (coordenate.y < 2) {
-        //Right
         nodeRight = JSON.parse(JSON.stringify(challenge));
         nodeRight.puzzle[coordenate.x][coordenate.y] =
           nodeRight.puzzle[coordenate.x][coordenate.y + 1];
@@ -730,14 +771,19 @@ export default {
           this.createdNodes++;
         }
       }
+
+      /* utiliza a função SET do JS, adiciona o atual primeiro da fila, para os visitados.*/
       this.visited.add(this.frontier[0].puzzle.toString());
+
+      /* adiciona na lista de visitados o atual primeiro da fila*/
       this.historyVisited.push(this.frontier[0]);
-      this.visitedNodes++;
-      this.frontier.splice(0, 1); // deleta o primeiro da fronteira
+
+      this.visitedNodes++; //incrementa o numero de nodos visitados
+      this.frontier.splice(0, 1); // deleta o atual primeiro da fronteira
     },
 
+    //recebe um toString da Matriz que foi criada com o movimento (up,down,left,right) e verifica se esse puzzle já foi criado. Verifica nos Nodos já visitados e também nos que estão na fronteira
     checkPuzzleAlreadyCreated(toString) {
-      //recebe um toString da Matriz que foi criada com o movimento (up,down,left,right) e verifica se esse puzzle já foi criado. Verifica nos Nodos já visitados e também nos que estão na fronteira
       let checkVisited = this.visited.has(toString);
       let checkFrontier = 0;
       this.frontier.forEach((item) => {
@@ -751,8 +797,8 @@ export default {
       }
     },
 
+    // Heuristica A* simples - recebe uma matriz e compara com a META, cada 'pastilha' no lugar errado incrementa em 1
     useHeuristic1(matriz) {
-      //recebe uma matriz e compara com a META, cada 'pastilha' no lugar errado incrementa em 1
       let heuristic = 0;
 
       if (matriz[0][0] !== this.meta[0][0]) heuristic++;
@@ -768,8 +814,8 @@ export default {
       return heuristic;
     },
 
+    //Melhor Heurística - recebe uma matriz e compara com a META, usando distância de Manhattan
     useHeuristic2(matriz) {
-      //recebe uma matriz e compara com a META, usando distância de Manhattan
       let heuristic = 0;
       const meta = [
         { value: 1, line: 0, column: 0 },
@@ -808,6 +854,7 @@ export default {
       return heuristic;
     },
 
+    // método auxiliar para gerar o identificador de cada nodo
     geraStringAleatoria(tamanho) {
       let check = false;
       while (!check) {
@@ -828,6 +875,7 @@ export default {
       return stringAleatoria;
     },
 
+    //método auxiliar para gerar o final Path do resultado encontrado
     geraFinalPath() {
       let ids = this.historyVisited[this.historyVisited.length - 1];
       let path = [];
@@ -840,6 +888,7 @@ export default {
       this.finalPath = path;
     },
 
+    // tentativa de lista ordenada
     listaOrdenada(array, item) {
       let primeiroMaior = { value: '', index: '', checked: false };
 
