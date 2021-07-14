@@ -560,6 +560,7 @@ export default {
           let coordenates = this.foundEmptySpace(this.frontier[0]);
           this.checkMovements(coordenates, this.frontier[0]);
           if (this.iterator > this.iterations) {
+            this.loading = false;
             this.alert = true;
             return;
           }
