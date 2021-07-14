@@ -782,14 +782,19 @@ export default {
       this.frontier.splice(0, 1); // deleta o atual primeiro da fronteira
     },
 
-    //recebe um toString da Matriz que foi criada com o movimento (up,down,left,right) e verifica se esse puzzle já foi criado. Verifica nos Nodos já visitados e também nos que estão na fronteira
+    /*recebe um toString da Matriz que foi criada com o movimento (up,down,left,right) e verifica se esse puzzle já foi criado. Verifica nos Nodos já visitados e também nos que estão na fronteira*/
+
     checkPuzzleAlreadyCreated(toString) {
+      //verifica no SET se o nodo já está na lista de visitados;
       let checkVisited = this.visited.has(toString);
+
+      //verifica se o nodo não está na fronteira
       let checkFrontier = 0;
       this.frontier.forEach((item) => {
         if (item.puzzle.toString() == toString) checkFrontier++;
       });
 
+      //caso não esteja na fronteira e nem na lista de visitados, retorna TRUE
       if (checkVisited == false && checkFrontier == 0) {
         return true;
       } else {
