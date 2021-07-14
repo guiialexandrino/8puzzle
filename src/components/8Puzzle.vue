@@ -146,7 +146,6 @@
       <span class="mx-2"><b>Nodos na Fronteira:</b> {{ frontier.length }}</span>
       <span class="mx-2"><b>Nodos Criados:</b> {{ createdNodes }}</span>
       <span class="mx-2"><b>Nodos Visitados:</b> {{ visitedNodes }}</span>
-      <span class="mx-2"><b>Tempo resolução:</b> {{ elapsedTime }}</span>
     </v-row>
 
     <!-- CAMINHO -->
@@ -239,6 +238,8 @@
         >
       </v-card>
     </v-dialog>
+    <!-- Loading -->
+    <Loading v-if="loading" />
   </v-container>
 </template>
 
@@ -248,10 +249,18 @@ import Challenge from './Challenge.vue';
 import PathResolution from './PathResolution.vue';
 import ShowInfo from './ShowInfo.vue';
 import Resolution from './Resolution.vue';
+import Loading from './Loading.vue';
 
 export default {
   name: 'EightPuzzle',
-  components: { Meta, Challenge, PathResolution, ShowInfo, Resolution },
+  components: {
+    Meta,
+    Challenge,
+    PathResolution,
+    ShowInfo,
+    Resolution,
+    Loading,
+  },
   data: () => ({
     start: false,
     showPathInfo: false,
@@ -362,6 +371,8 @@ export default {
     newCustomPuzzle: '',
     errorMessage: '',
     elapsedTime: '',
+    loading: false,
+    timeToDone: 0,
   }),
   created() {
     this.challengeByAlgorithm.push(this.challenges[0]);
@@ -539,44 +550,56 @@ export default {
     },
 
     handleStart() {
+      this.loading = true;
       this.start = true;
-      let timeStart = new Date().getTime();
-      while (this.frontier[0].puzzle.toString() !== this.meta.toString()) {
-        this.iterator++;
-        let coordenates = this.foundEmptySpace(this.frontier[0]);
-        this.checkMovements(coordenates, this.frontier[0]);
-        if (this.iterator > this.iterations) {
-          this.alert = true;
-          return;
-        }
-        this.lowestCost();
-      }
-      if (this.frontier[0].puzzle.toString() === this.meta.toString()) {
-        // concluiu o objetivo!
-        this.done = true;
-        this.visited.add(this.frontier[0].puzzle.toString());
-        this.historyVisited.push(this.frontier[0]);
-        this.geraFinalPath();
-        this.resolution = this.finalPath[0];
-        this.visitedNodes++;
-        this.frontier.splice(0, 1); // deleta o primeiro da fronteira
-      }
 
-      //Calcular o tempo
-      let timeEnd = new Date().getTime();
-      let finalTime = timeEnd - timeStart; // tempo decorrido em milisegundos
-      console.log(finalTime);
-      if (finalTime > 1000) {
-        let minutes = Math.floor(finalTime / 60000);
-        let seconds = ((finalTime % 60000) / 1000).toFixed(0);
-        if (minutes > 0)
-          this.elapsedTime =
-            minutes + ' min e ' + (seconds < 10 ? '0' : '') + seconds + 'sec';
-        if (minutes == 0) this.elapsedTime = seconds + ' sec';
-      } else {
-        this.elapsedTime = `${finalTime} milisec.`;
-      }
-      console.log(this.elapsedTime);
+      setTimeout(() => {
+        let timeStart = new Date().getTime();
+        while (this.frontier[0].puzzle.toString() !== this.meta.toString()) {
+          this.iterator++;
+          let coordenates = this.foundEmptySpace(this.frontier[0]);
+          this.checkMovements(coordenates, this.frontier[0]);
+          if (this.iterator > this.iterations) {
+            this.alert = true;
+            return;
+          }
+          this.lowestCost();
+        }
+        if (this.frontier[0].puzzle.toString() === this.meta.toString()) {
+          // concluiu o objetivo!
+          this.done = true;
+          this.visited.add(this.frontier[0].puzzle.toString());
+          this.historyVisited.push(this.frontier[0]);
+          this.geraFinalPath();
+          this.resolution = this.finalPath[0];
+          this.visitedNodes++;
+          this.frontier.splice(0, 1); // deleta o primeiro da fronteira
+        }
+        //Calcular o tempo
+        let timeEnd = new Date().getTime();
+        let finalTime = timeEnd - timeStart; // tempo decorrido em milisegundos
+        this.timeToDone = finalTime;
+        if (finalTime > 1000) {
+          let minutes = Math.floor(finalTime / 60000);
+          let seconds = ((finalTime % 60000) / 1000).toFixed(0);
+          if (minutes > 0)
+            this.elapsedTime =
+              minutes +
+              ' minuto(s) e ' +
+              (seconds < 10 ? '0' : '') +
+              seconds +
+              'segundo(s)';
+          if (minutes == 0) this.elapsedTime = seconds + ' segundo(s)';
+        } else {
+          this.elapsedTime = `${finalTime} milisegundos.`;
+        }
+        console.log(`Total de iterações: ${this.iterator}`);
+        console.log(
+          `Tempo de execução de todas iterações: ${this.elapsedTime}`,
+        );
+
+        this.loading = false;
+      }, 0);
     },
 
     // Métodos para o ALGORITMO
