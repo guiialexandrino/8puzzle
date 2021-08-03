@@ -3,7 +3,7 @@
 ### View demo
 
 ```
-Ver demo em: [https://guiialexandrino.github.io/8puzzle/](https://guiialexandrino.github.io/8puzzle/).
+https://guiialexandrino.github.io/8puzzle/
 ```
 
 ### Project setup
@@ -23,13 +23,3 @@ yarn serve
 ```
 yarn build
 ```
-
-### Lints and fixes files
-
-```
-yarn lint
-```
-
-### Customize configuration
-
-See [Configuration Reference](https://cli.vuejs.org/config/).
