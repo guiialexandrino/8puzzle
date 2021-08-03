@@ -1,12 +1,12 @@
 # 8puzzle using heuristics
 
-## View demo
+### View demo
 
 ```
-https://guiialexandrino.github.io/8puzzle/
+Ver demo em: [https://guiialexandrino.github.io/8puzzle/](https://guiialexandrino.github.io/8puzzle/).
 ```
 
-## Project setup
+### Project setup
 
 ```
 yarn install
