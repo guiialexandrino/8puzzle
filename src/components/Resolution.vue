@@ -1,6 +1,6 @@
 <template>
   <!-- Desafio -->
-  <v-row style="position: relative" class="green lighten-5">
+  <v-row style="position: relative; user-select: none;" class="green lighten-5">
     <v-col cols="12" class="white"
       ><b>Resolução passo-passo ({{ finalPath.length - 1 }})</b></v-col
     >
@@ -8,21 +8,21 @@
       v-for="linha1 in resolution.puzzle[0]"
       :key="linha1"
       cols="4"
-      :class="linha1 == '' && 'red lighten-4'"
+      :class="linha1 == '' ? 'green lighten-3 elevation-2' : 'elevation-1'"
       >{{ linha1 }}
     </v-col>
     <v-col
       v-for="linha2 in resolution.puzzle[1]"
       :key="linha2"
       cols="4"
-      :class="linha2 == '' && 'red lighten-4'"
+      :class="linha2 == '' ? 'green lighten-3 elevation-2' : 'elevation-1'"
       >{{ linha2 }}
     </v-col>
     <v-col
       v-for="linha3 in resolution.puzzle[2]"
       :key="linha3"
       cols="4"
-      :class="linha3 == '' && 'red lighten-4'"
+      :class="linha3 == '' ? 'green lighten-3 elevation-2' : 'elevation-1'"
       >{{ linha3 }}
     </v-col>
 

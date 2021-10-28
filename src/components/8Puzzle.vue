@@ -143,7 +143,12 @@
       </v-col>
     </v-row>
     <!-- RESULTADO DETALHES -->
-    <v-row v-if="done" justify="center" class="mt-12 mb-2">
+    <v-row
+      v-if="done"
+      justify="center"
+      class="mt-12 mb-2"
+      style="user-select: none;"
+    >
       <span class="mx-2">
         <b>Máx Nodos na Fronteira:</b> {{ maxFrontier }}
       </span>
@@ -920,3 +925,5 @@ export default {
   },
 };
 </script>
+
+<style></style>

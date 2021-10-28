@@ -1,7 +1,9 @@
 <template>
   <v-app>
     <v-main>
-      <EightPuzzle />
+      <v-container fill-height>
+        <EightPuzzle />
+      </v-container>
     </v-main>
   </v-app>
 </template>
@@ -21,3 +23,9 @@ export default {
   }),
 };
 </script>
+
+<style>
+* {
+  user-select: none;
+}
+</style>
