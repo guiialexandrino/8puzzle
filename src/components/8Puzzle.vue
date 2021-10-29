@@ -1,6 +1,6 @@
 <template>
   <v-container>
-    <v-row>
+    <!-- <v-row>
       <v-col class="my-1" cols="12" align="center">
         <h1 class="display-2 font-weight-bold mb-3">
           8-PUZZLE
@@ -25,229 +25,258 @@
             dense
           />
         </v-row>
-        <v-row justify="center" no-gutters>
-          <v-col cols="6" sm="6" md="4" lg="4" xl="3">
+      </v-col>
+    </v-row> -->
+    <v-card class="py-8 px-10" elevation="2">
+      <v-row>
+        <v-col class="my-1" cols="12" align="center">
+          <h1 class="display-2 font-weight-bold mb-3">
+            8-PUZZLE
+          </h1>
+          <p class="subheading font-weight-regular">
+            Trabalho disciplina <b>INE 5633</b> - Sistemas inteligentes.<br />
+            <span style="font-size:0.9rem"
+              >Desenvolvido por: <b>Guilherme Alexandrino</b></span
+            >
+          </p>
+          <v-row justify="center" no-gutters class="mt-8 mb-4"
+            ><v-icon class="pr-2 pb-5" small>mdi-cog</v-icon
+            ><span>
+              <b>Nº máximo de iterações: </b>
+            </span>
             <v-select
-              :disabled="start"
-              class="px-4"
-              v-model="type"
-              :items="typeOptions"
-              item-text="label"
-              item-value="type"
+              :disabled="type == 'bestA*'"
+              style="max-width:5%; min-width: 80px"
+              class="pl-2 ma-0"
+              v-model="iterations"
+              :items="iterationOptions"
+              dense
             />
+          </v-row>
+          <v-row justify="center" no-gutters>
+            <v-col cols="6" sm="6" md="4" lg="4" xl="3">
+              <v-select
+                :disabled="start"
+                class="px-4"
+                v-model="type"
+                :items="typeOptions"
+                item-text="label"
+                item-value="type"
+              />
 
-            <Meta :meta="meta" />
-          </v-col>
-          <v-col cols="6" sm="6" md="4" lg="4" xl="3">
-            <v-select
-              :disabled="start"
-              class="px-4"
-              v-model="selectedChallenge"
-              :items="challengeByAlgorithm"
-              item-text="label"
-              item-value="puzzle"
-            />
-            <Challenge
-              :selectedChallenge="selectedChallenge"
-              @customPuzzle="customPuzzle"
-            />
-          </v-col>
-        </v-row>
-      </v-col>
-      <v-col
-        cols="12"
-        class="my-4"
+              <Meta :meta="meta" />
+            </v-col>
+            <v-col cols="6" sm="6" md="4" lg="4" xl="3">
+              <v-select
+                :disabled="start"
+                class="px-4"
+                v-model="selectedChallenge"
+                :items="challengeByAlgorithm"
+                item-text="label"
+                item-value="puzzle"
+              />
+              <Challenge
+                :selectedChallenge="selectedChallenge"
+                @customPuzzle="customPuzzle"
+              />
+            </v-col>
+          </v-row>
+        </v-col>
+        <v-col
+          cols="12"
+          class="my-4"
+          justify="center"
+          style="display:flex; justify-content: center"
+        >
+          <v-btn
+            :disabled="done"
+            rounded
+            elevation="0"
+            color="blue lighten-1"
+            class="white--text"
+            @click="handleStart"
+            >Resolver</v-btn
+          >
+          <v-btn
+            rounded
+            elevation="0"
+            color="red lighten-2"
+            class="white--text ml-3"
+            @click="handleReset"
+            >Resetar</v-btn
+          >
+        </v-col>
+      </v-row>
+      <v-row no-gutters justify="center" style="font-size:0.85rem">
+        <span v-if="type == 'uniformCost' && !done">
+          <b>**Atenção**</b> desafios em <u>Custo Uniforme</u> com
+          <b>mais de 11 movimentos</b> tendem a demorar, é necessário aumentar o
+          nª máximo de iterações.
+        </span>
+        <span v-if="type == 'a*' && !done">
+          <b>**Atenção**</b> desafios em <u>A* Heuristica Simples</u> com
+          <b>mais de 17 movimentos</b> tendem a demorar, é necessário aumentar o
+          nª máximo de iterações.
+        </span>
+        <span v-if="type == 'bestA*' && !done">
+          <b>**Atenção**</b> desafios em <u>Melhor A*</u> com
+          <b>mais de 24 movimentos</b> podem levar vários minutos para encontrar
+          a solução.
+        </span>
+      </v-row>
+      <v-row justify="center" class="mt-6" style="font-size: 1.2rem"
+        ><v-col align="center" cols="6" sm="6" md="4" lg="4" xl="3"
+          ><Resolution
+            v-if="done"
+            :resolution="resolution"
+            :meta="meta"
+            :finalPath="finalPath"
+            @nextStep="handleNextStepResolution"
+            @previousStep="handlePreviousStepResolution"/></v-col
+      ></v-row>
+      <v-row v-if="done" justify="center" class="mt-8">
+        <v-col
+          cols="12"
+          class="my-0 pa-0"
+          justify="center"
+          style="display:flex; justify-content: center"
+        >
+          <v-btn
+            :disabled="!done"
+            small
+            rounded
+            outlined
+            elevation="0"
+            color="green lighten-1"
+            class="white--text ml-3"
+            @click="showPathInfo = !showPathInfo"
+          >
+            {{ showPathInfo ? 'Esconder Caminho' : 'Mostrar Caminho' }}
+          </v-btn>
+          <v-btn
+            :disabled="iterator > 2000"
+            small
+            rounded
+            outlined
+            elevation="0"
+            color="purple lighten-2"
+            class="white--text ml-3"
+            @click="showFrontierInfo = !showFrontierInfo"
+            >{{
+              showFrontierInfo
+                ? 'Esconder Fronteira/Visitados'
+                : 'Mostrar Fronteira/Visitados'
+            }}</v-btn
+          >
+        </v-col>
+      </v-row>
+      <!-- RESULTADO DETALHES -->
+      <v-row
+        v-if="done"
         justify="center"
-        style="display:flex; justify-content: center"
+        class="mt-12 mb-2"
+        style="user-select: none;"
       >
-        <v-btn
-          :disabled="done"
-          rounded
-          elevation="0"
-          color="blue lighten-1"
-          class="white--text"
-          @click="handleStart"
-          >Resolver</v-btn
-        >
-        <v-btn
-          rounded
-          elevation="0"
-          color="red lighten-2"
-          class="white--text ml-3"
-          @click="handleReset"
-          >Resetar</v-btn
-        >
-      </v-col>
-    </v-row>
-    <v-row no-gutters justify="center" style="font-size:0.85rem">
-      <span v-if="type == 'uniformCost' && !done">
-        <b>**Atenção**</b> desafios em <u>Custo Uniforme</u> com
-        <b>mais de 11 movimentos</b> tendem a demorar, é necessário aumentar o
-        nª máximo de iterações.
-      </span>
-      <span v-if="type == 'a*' && !done">
-        <b>**Atenção**</b> desafios em <u>A* Heuristica Simples</u> com
-        <b>mais de 17 movimentos</b> tendem a demorar, é necessário aumentar o
-        nª máximo de iterações.
-      </span>
-      <span v-if="type == 'bestA*' && !done">
-        <b>**Atenção**</b> desafios em <u>Melhor A*</u> com
-        <b>mais de 24 movimentos</b> podem levar vários minutos para encontrar a
-        solução.
-      </span>
-    </v-row>
-    <v-row justify="center" class="mt-6" style="font-size: 1.2rem"
-      ><v-col align="center" cols="6" sm="6" md="4" lg="4" xl="3"
-        ><Resolution
-          v-if="done"
-          :resolution="resolution"
-          :meta="meta"
-          :finalPath="finalPath"
-          @nextStep="handleNextStepResolution"
-          @previousStep="handlePreviousStepResolution"/></v-col
-    ></v-row>
-    <v-row v-if="done" justify="center" class="mt-8">
-      <v-col
-        cols="12"
-        class="my-0 pa-0"
-        justify="center"
-        style="display:flex; justify-content: center"
-      >
-        <v-btn
-          :disabled="!done"
-          small
-          rounded
-          outlined
-          elevation="0"
-          color="green lighten-1"
-          class="white--text ml-3"
-          @click="showPathInfo = !showPathInfo"
-        >
-          {{ showPathInfo ? 'Esconder Caminho' : 'Mostrar Caminho' }}
-        </v-btn>
-        <v-btn
-          :disabled="iterator > 2000"
-          small
-          rounded
-          outlined
-          elevation="0"
-          color="purple lighten-2"
-          class="white--text ml-3"
-          @click="showFrontierInfo = !showFrontierInfo"
-          >{{
-            showFrontierInfo
-              ? 'Esconder Fronteira/Visitados'
-              : 'Mostrar Fronteira/Visitados'
-          }}</v-btn
-        >
-      </v-col>
-    </v-row>
-    <!-- RESULTADO DETALHES -->
-    <v-row
-      v-if="done"
-      justify="center"
-      class="mt-12 mb-2"
-      style="user-select: none;"
-    >
-      <span class="mx-2">
-        <b>Máx Nodos na Fronteira:</b> {{ maxFrontier }}
-      </span>
-      <span class="mx-2"><b>Nodos Criados:</b> {{ createdNodes }}</span>
-      <span class="mx-2"><b>Nodos Visitados:</b> {{ visitedNodes }}</span>
-    </v-row>
+        <span class="mx-2">
+          <b>Máx Nodos na Fronteira:</b> {{ maxFrontier }}
+        </span>
+        <span class="mx-2"><b>Nodos Criados:</b> {{ createdNodes }}</span>
+        <span class="mx-2"><b>Nodos Visitados:</b> {{ visitedNodes }}</span>
+      </v-row>
 
-    <!-- CAMINHO -->
-    <PathResolution
-      v-if="showPathInfo"
-      :finalPath="finalPath"
-      :meta="meta"
-      :type="type"
-    />
+      <!-- CAMINHO -->
+      <PathResolution
+        v-if="showPathInfo"
+        :finalPath="finalPath"
+        :meta="meta"
+        :type="type"
+      />
 
-    <!-- FRONTEIRA E VISITADOS -->
-    <ShowInfo
-      v-if="showFrontierInfo"
-      :frontier="frontier"
-      :historyVisited="historyVisited"
-      :meta="meta"
-      :type="type"
-    />
-    <!-- Dialog informativo -->
-    <v-dialog v-model="alert" retain-focus persistent width="500px">
-      <v-card class="pa-6" align="center">
-        <v-icon
-          style="transform: scale(1.3);"
-          class="mb-3"
-          x-large
-          color="yellow darken-2"
-          >mdi-alert</v-icon
-        >
-        <p>
-          <span
-            ><b>Ops...</b> a busca atingiu o <b>limite máx de iterações</b> e
-            não conseguiu encontrar uma solução para esse desafio :( <br
-          /></span>
-        </p>
-        <v-btn
-          rounded
-          class="mt-4 white--text"
-          elevation="0"
-          color="yellow darken-2"
-          @click="alert = false"
-          >Ok</v-btn
-        >
-      </v-card>
-    </v-dialog>
-    <!-- customPuzzle -->
-    <v-dialog v-model="customDialog" retain-focus persistent width="500px">
-      <v-card class="pa-6" align="center">
-        <v-icon
-          style="transform: scale(1.3);"
-          class="mb-3"
-          x-large
-          color="green lighten-2"
-          >mdi-puzzle-edit</v-icon
-        >
-        <br />
-        <span style="font-size: 1.2rem"><b>Desafio Personalizado</b></span>
-        <br />
-        <br />
-        <p>
-          <span
-            >Para representar a casa sem número digite 0 no lugar.<br />Um
-            <b>exemplo válido</b> de desafio é "123405786" <br
-          /></span>
-        </p>
-        <v-text-field
-          style="max-width: 70%"
-          :counter="9"
-          :error="false"
-          :error-messages="errorMessage"
-          maxlength="9"
-          v-model="newCustomPuzzle"
-          @keypress="validation($event)"
-        ></v-text-field>
-        <v-btn
-          :disabled="newCustomPuzzle.length < 9"
-          rounded
-          class="mt-4 mr-2 white--text"
-          elevation="0"
-          color="green lighten-2"
-          @click="validationCustomPuzzle"
-          >Pronto</v-btn
-        >
-        <v-btn
-          rounded
-          class="mt-4"
-          elevation="0"
-          outlined
-          @click="customDialog = false"
-          >Cancelar</v-btn
-        >
-      </v-card>
-    </v-dialog>
-    <!-- Loading -->
-    <Loading v-if="loading" />
+      <!-- FRONTEIRA E VISITADOS -->
+      <ShowInfo
+        v-if="showFrontierInfo"
+        :frontier="frontier"
+        :historyVisited="historyVisited"
+        :meta="meta"
+        :type="type"
+      />
+      <!-- Dialog informativo -->
+      <v-dialog v-model="alert" retain-focus persistent width="500px">
+        <v-card class="pa-6" align="center">
+          <v-icon
+            style="transform: scale(1.3);"
+            class="mb-3"
+            x-large
+            color="yellow darken-2"
+            >mdi-alert</v-icon
+          >
+          <p>
+            <span
+              ><b>Ops...</b> a busca atingiu o <b>limite máx de iterações</b> e
+              não conseguiu encontrar uma solução para esse desafio :( <br
+            /></span>
+          </p>
+          <v-btn
+            rounded
+            class="mt-4 white--text"
+            elevation="0"
+            color="yellow darken-2"
+            @click="alert = false"
+            >Ok</v-btn
+          >
+        </v-card>
+      </v-dialog>
+      <!-- customPuzzle -->
+      <v-dialog v-model="customDialog" retain-focus persistent width="500px">
+        <v-card class="pa-6" align="center">
+          <v-icon
+            style="transform: scale(1.3);"
+            class="mb-3"
+            x-large
+            color="green lighten-2"
+            >mdi-puzzle-edit</v-icon
+          >
+          <br />
+          <span style="font-size: 1.2rem"><b>Desafio Personalizado</b></span>
+          <br />
+          <br />
+          <p>
+            <span
+              >Para representar a casa sem número digite 0 no lugar.<br />Um
+              <b>exemplo válido</b> de desafio é "123405786" <br
+            /></span>
+          </p>
+          <v-text-field
+            style="max-width: 70%"
+            :counter="9"
+            :error="false"
+            :error-messages="errorMessage"
+            maxlength="9"
+            v-model="newCustomPuzzle"
+            @keypress="validation($event)"
+          ></v-text-field>
+          <v-btn
+            :disabled="newCustomPuzzle.length < 9"
+            rounded
+            class="mt-4 mr-2 white--text"
+            elevation="0"
+            color="green lighten-2"
+            @click="validationCustomPuzzle"
+            >Pronto</v-btn
+          >
+          <v-btn
+            rounded
+            class="mt-4"
+            elevation="0"
+            outlined
+            @click="customDialog = false"
+            >Cancelar</v-btn
+          >
+        </v-card>
+      </v-dialog>
+      <!-- Loading -->
+      <Loading v-if="loading" />
+    </v-card>
   </v-container>
 </template>
 
