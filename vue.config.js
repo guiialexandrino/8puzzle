@@ -1,4 +1,4 @@
 module.exports = {
-  publicPath: '/8puzzle/',
+  // publicPath: '/8puzzle/',
   transpileDependencies: ['vuetify'],
 };
