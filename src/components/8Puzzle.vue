@@ -142,14 +142,14 @@
       <!-- Dialog informativo -->
       <v-dialog v-model="alert" retain-focus persistent width="500px">
         <v-card class="pa-6" align="center">
-          <v-icon style="transform: scale(1.3);" class="mb-3" x-large color="yellow darken-2"
-            >mdi-alert</v-icon
-          >
+          <v-icon style="transform: scale(1.3);" class="mb-3" x-large color="yellow darken-2">
+            mdi-alert
+          </v-icon>
           <p>
-            <span
-              ><b>Ops...</b> a busca atingiu o <b>limite máx de iterações</b> e não conseguiu
-              encontrar uma solução para esse desafio :( <br
-            /></span>
+            <span>
+              <b>Ops...</b> o algoritmo não conseguiu encontrar uma solução para esse desafio :(
+              <br />
+            </span>
           </p>
           <v-btn
             rounded
@@ -157,8 +157,9 @@
             elevation="0"
             color="yellow darken-2"
             @click="alert = false"
-            >Ok</v-btn
           >
+            Ok
+          </v-btn>
         </v-card>
       </v-dialog>
       <!-- customPuzzle -->
@@ -333,7 +334,6 @@ export default {
     customDialog: false,
     newCustomPuzzle: '',
     errorMessage: '',
-    elapsedTime: '',
     loading: false,
     timeToDone: 0
   }),
@@ -529,54 +529,67 @@ export default {
     },
 
     // Clica no botão "Resolver" chama os métodos de lógica do algoritmo
-
-    handleStart() {
+    async handleStart() {
       this.loading = true
       this.start = true
 
-      setTimeout(() => {
-        let timeStart = new Date().getTime()
-        const metaKey = this.meta.toString()
+      let timeStart = new Date().getTime()
 
-        //enquanto o primeiro elemento da fronteira for diferente do objetivo, o laço é realizado
-        while (this.frontier[0].puzzleKey !== metaKey) {
-          this.iterator++
-          let coordenates = this.foundEmptySpace(this.frontier[0])
-          this.checkMovements(coordenates, this.frontier[0])
-          if (this.frontier.length > this.maxFrontier) this.maxFrontier = this.frontier.length
-        }
+      try {
+        await new Promise(resolve => {
+          setTimeout(() => {
+            const metaKey = this.meta.toString()
 
-        // se o primeiro item da fronteira for igual ao objetivo ele encerra a busca e retorna os resultados
-        if (this.frontier[0].puzzleKey === metaKey) {
-          this.done = true
-          this.visited.add(this.frontier[0].puzzleKey)
-          this.frontierSet.delete(this.frontier[0].puzzleKey)
-          this.historyVisited.push(this.frontier[0])
-          this.geraFinalPath()
-          this.resolution = this.finalPath[0]
-          this.visitedNodes++
-          this.frontier.splice(0, 1)
-        }
+            //enquanto o primeiro elemento da fronteira for diferente do objetivo, o laço é realizado
+            while (this.frontier[0].puzzleKey !== metaKey) {
+              this.iterator++
+              let coordenates = this.foundEmptySpace(this.frontier[0])
+              this.checkMovements(coordenates, this.frontier[0])
+              if (this.frontier.length > this.maxFrontier) this.maxFrontier = this.frontier.length
+            }
 
-        //Calcular o tempo de execução, pode ser visto no console do navegador (apertando f12)
-        let timeEnd = new Date().getTime()
-        let finalTime = timeEnd - timeStart // tempo decorrido em milisegundos
-        this.timeToDone = finalTime
-        if (finalTime > 1000) {
-          let minutes = Math.floor(finalTime / 60000)
-          let seconds = ((finalTime % 60000) / 1000).toFixed(0)
-          if (minutes > 0)
-            this.elapsedTime =
-              minutes + ' minuto(s) e ' + (seconds < 10 ? '0' : '') + seconds + 'segundo(s)'
-          if (minutes == 0) this.elapsedTime = seconds + ' segundo(s)'
-        } else {
-          this.elapsedTime = `${finalTime} milisegundos.`
-        }
-        console.log(`Total de iterações: ${this.iterator}`)
-        console.log(`Tempo de execução de todas iterações: ${this.elapsedTime}`)
+            // se o primeiro item da fronteira for igual ao objetivo ele encerra a busca e retorna os resultados
+            if (this.frontier[0].puzzleKey === metaKey) {
+              this.done = true
+              this.visited.add(this.frontier[0].puzzleKey)
+              this.frontierSet.delete(this.frontier[0].puzzleKey)
+              this.historyVisited.push(this.frontier[0])
+              this.geraFinalPath()
+              this.resolution = this.finalPath[0]
+              this.visitedNodes++
+              this.frontier.splice(0, 1)
+            }
 
+            resolve()
+          }, 0)
+        })
+      } catch (e) {
+        this.alert = true
+      } finally {
+        this.calcSpendedTime(timeStart)
         this.loading = false
-      }, 0)
+      }
+    },
+
+    calcSpendedTime(timeStart) {
+      let elapsedTime = ''
+      let timeEnd = new Date().getTime()
+      let finalTime = timeEnd - timeStart // tempo decorrido em milisegundos
+      this.timeToDone = finalTime
+
+      if (finalTime > 1000) {
+        let minutes = Math.floor(finalTime / 60000)
+        let seconds = ((finalTime % 60000) / 1000).toFixed(0)
+        if (minutes > 0)
+          elapsedTime =
+            minutes + ' minuto(s) e ' + (seconds < 10 ? '0' : '') + seconds + 'segundo(s)'
+        if (minutes == 0) elapsedTime = seconds + ' segundo(s)'
+      } else {
+        elapsedTime = `${finalTime} milisegundos.`
+      }
+
+      console.log(`Total de iterações: ${this.iterator}`)
+      console.log(`Tempo de execução de todas iterações: ${elapsedTime}`)
     },
 
     // Métodos para o ALGORITMO
