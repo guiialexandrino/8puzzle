@@ -365,26 +365,16 @@ export default {
     type() {
       if (this.type == 'uniformCost') {
         this.challengeByAlgorithm = []
-        this.addChallenge([0, 1, 2, 3])
-
-        let check = 0
-        this.challengeByAlgorithm.forEach(item => {
-          if (item.puzzle.toString() === this.selectedChallenge.toString()) check++
-        })
-
-        if (check == 0) this.selectedChallenge = this.challenges[0].puzzle
+        this.addChallenge([0, 1, 2, 3, 4])
+        this.ensureSelectedChallengeIsAvailable()
       }
+
       if (this.type == 'a*') {
         this.challengeByAlgorithm = []
-        this.addChallenge([0, 1, 2, 3, 4])
-
-        let check = 0
-        this.challengeByAlgorithm.forEach(item => {
-          if (item.puzzle.toString() === this.selectedChallenge.toString()) check++
-        })
-
-        if (check == 0) this.selectedChallenge = this.challenges[0].puzzle
+        this.addChallenge([0, 1, 2, 3, 4, 5])
+        this.ensureSelectedChallengeIsAvailable()
       }
+
       if (this.type == 'bestA*') {
         this.challengeByAlgorithm = []
         this.addChallenge()
@@ -470,6 +460,15 @@ export default {
           this.challengeByAlgorithm.push(this.challenges[v])
         })
       }
+    },
+
+    ensureSelectedChallengeIsAvailable() {
+      const selectedChallengeKey = this.selectedChallenge.toString()
+      const challengeExists = this.challengeByAlgorithm.some(
+        item => item.puzzle.toString() === selectedChallengeKey
+      )
+
+      if (!challengeExists) this.selectedChallenge = this.challenges[0].puzzle
     },
 
     /* FRONTEND MÉTODOS - métodos referentes a interação com a tela e usuário */
