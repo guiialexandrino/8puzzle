@@ -365,7 +365,8 @@ export default {
     historyVisited: [],
     finalPath: [],
     visited: new Set(), // guardar os nodos visitados em .toString() para comparação
-    generatedIds: new Set(),
+    frontierSet: new Set(), // lookup O(1) para verificar se puzzle já está na fronteira
+    nodeIdCounter: 0,
     done: false,
     resolution: [],
     iterator: 0,
@@ -387,13 +388,16 @@ export default {
     this.challengeByAlgorithm.push(this.challenges[2])
     this.challengeByAlgorithm.push(this.challenges[3])
     this.selectedChallenge = this.challenges[0].puzzle
-    this.frontier.push({
+    const initialNode = {
       cost: 0,
       puzzle: this.selectedChallenge,
-      id: [this.geraStringAleatoria(3)],
+      puzzleKey: this.selectedChallenge.toString(),
+      id: [this.nodeIdCounter++],
       heuristic1: this.useHeuristic1(this.selectedChallenge),
       heuristic2: this.useHeuristic2(this.selectedChallenge)
-    })
+    }
+    this.frontier.push(initialNode)
+    this.frontierSet.add(initialNode.puzzleKey)
     this.maxFrontier = 1
   },
 
@@ -450,13 +454,17 @@ export default {
     //ao selecionar o desafio, ele calcula dados iniciais e envia a fila da fronteira - é o o ponto de partida para a busca
     selectedChallenge() {
       this.frontier = []
-      this.frontier.push({
+      this.frontierSet.clear()
+      const initialNode = {
         cost: 0,
         puzzle: this.selectedChallenge,
-        id: [this.geraStringAleatoria(3)],
+        puzzleKey: this.selectedChallenge.toString(),
+        id: [this.nodeIdCounter++],
         heuristic1: this.useHeuristic1(this.selectedChallenge),
         heuristic2: this.useHeuristic2(this.selectedChallenge)
-      })
+      }
+      this.frontier.push(initialNode)
+      this.frontierSet.add(initialNode.puzzleKey)
       this.maxFrontier = 1
     }
   },
@@ -523,14 +531,19 @@ export default {
       this.start = false
       this.selectedChallenge = this.challenges[0].puzzle
       this.frontier = []
+      this.frontierSet.clear()
+      this.nodeIdCounter = 0
       this.maxFrontier = 0
-      this.frontier.push({
+      const initialNode = {
         cost: 0,
         puzzle: this.selectedChallenge,
-        id: [this.geraStringAleatoria(3)],
+        puzzleKey: this.selectedChallenge.toString(),
+        id: [this.nodeIdCounter++],
         heuristic1: this.useHeuristic1(this.selectedChallenge),
         heuristic2: this.useHeuristic2(this.selectedChallenge)
-      })
+      }
+      this.frontier.push(initialNode)
+      this.frontierSet.add(initialNode.puzzleKey)
       this.visitedNodes = 0
       this.createdNodes = 0
       this.done = false
@@ -576,9 +589,10 @@ export default {
 
       setTimeout(() => {
         let timeStart = new Date().getTime()
+        const metaKey = this.meta.toString()
 
         //enquanto o primeiro elemento da fronteira for diferente do objetivo, o laço é realizado
-        while (this.frontier[0].puzzle.toString() !== this.meta.toString()) {
+        while (this.frontier[0].puzzleKey !== metaKey) {
           this.iterator++
 
           let coordenates = this.foundEmptySpace(this.frontier[0])
@@ -591,20 +605,19 @@ export default {
             return
           }
 
-          this.lowestCost()
-
           if (this.frontier.length > this.maxFrontier) this.maxFrontier = this.frontier.length
         }
 
         // se o primeiro item da fronteira for igual ao objetivo ele encerra a busca e retorna os resultados
-        if (this.frontier[0].puzzle.toString() === this.meta.toString()) {
+        if (this.frontier[0].puzzleKey === metaKey) {
           this.done = true
-          this.visited.add(this.frontier[0].puzzle.toString())
+          this.visited.add(this.frontier[0].puzzleKey)
+          this.frontierSet.delete(this.frontier[0].puzzleKey)
           this.historyVisited.push(this.frontier[0])
           this.geraFinalPath()
           this.resolution = this.finalPath[0]
           this.visitedNodes++
-          this.frontier.splice(0, 1) // deleta o primeiro da fronteira
+          this.frontier.splice(0, 1)
         }
 
         //Calcular o tempo de execução, pode ser visto no console do navegador (apertando f12)
@@ -630,39 +643,31 @@ export default {
 
     // Métodos para o ALGORITMO
 
-    // lowestCost -> ordena a lista da fronteira de acordo com o menor custo
-    lowestCost() {
-      if (this.type == 'uniformCost')
-        this.frontier.sort((a, b) => {
-          if (a.cost > b.cost) return 1
-          if (a.cost < b.cost) return -1
-          return 0
-        })
-      if (this.type == 'a*')
-        this.frontier.sort((a, b) => {
-          if (a.cost + a.heuristic1 > b.cost + b.heuristic1) return 1
-          if (a.cost + a.heuristic1 < b.cost + b.heuristic1) return -1
-          return 0
-        })
-      if (this.type == 'bestA*')
-        this.frontier.sort((a, b) => {
-          if (a.cost + a.heuristic2 > b.cost + b.heuristic2) return 1
-          if (a.cost + a.heuristic2 < b.cost + b.heuristic2) return -1
-          return 0
-        })
+    // Retorna o valor de custo usado para ordenação, conforme o tipo de busca
+    getCostValue(node) {
+      if (this.type === 'uniformCost') return node.cost
+      if (this.type === 'a*') return node.cost + node.heuristic1
+      return node.cost + node.heuristic2
+    },
+
+    // Insere nodo na fronteira mantendo ordem crescente via binary search - O(log n)
+    insertOrdered(node) {
+      const value = this.getCostValue(node)
+      let low = 0
+      let high = this.frontier.length
+      while (low < high) {
+        const mid = (low + high) >> 1
+        if (this.getCostValue(this.frontier[mid]) <= value) {
+          low = mid + 1
+        } else {
+          high = mid
+        }
+      }
+      this.frontier.splice(low, 0, node)
     },
 
     // procura onde está espaço em branco da matriz e retorna seu indice
     foundEmptySpace(firstFrontier) {
-      // let x, y;
-      // firstFrontier.puzzle.forEach((line, index) => {
-      //   line.forEach((item, index2) => {
-      //     if (!item) {
-      //       x = index;
-      //       y = index2;
-      //     }
-      //   });
-      // });
       const x = firstFrontier.puzzle.findIndex(r => r.includes(''))
       const y = firstFrontier.puzzle[x]?.findIndex(c => c === '')
       return { x, y }
@@ -676,116 +681,53 @@ export default {
     */
 
     checkMovements(coordenate, challenge) {
-      let nodeUp, nodeLeft, nodeRight, nodeDown
+      const directions = [
+        { dx: -1, dy: 0 }, // UP
+        { dx: 1, dy: 0 }, // DOWN
+        { dx: 0, dy: -1 }, // LEFT
+        { dx: 0, dy: 1 } // RIGHT
+      ]
 
-      //UP
-      if (coordenate.x > 0) {
-        nodeUp = JSON.parse(JSON.stringify(challenge))
-        nodeUp.puzzle[coordenate.x][coordenate.y] = nodeUp.puzzle[coordenate.x - 1][coordenate.y]
-        nodeUp.puzzle[coordenate.x - 1][coordenate.y] = ''
-        nodeUp.cost++
-        nodeUp.id.push(this.geraStringAleatoria(3))
+      for (const { dx, dy } of directions) {
+        const nx = coordenate.x + dx
+        const ny = coordenate.y + dy
+        if (nx < 0 || nx > 2 || ny < 0 || ny > 2) continue
 
-        //se utilizar a heuristica a* simples
-        if (this.type == 'a*') nodeUp.heuristic1 = this.useHeuristic1(nodeUp.puzzle)
+        // Clone apenas o puzzle (não o objeto inteiro)
+        const newPuzzle = challenge.puzzle.map(row => [...row])
+        newPuzzle[coordenate.x][coordenate.y] = newPuzzle[nx][ny]
+        newPuzzle[nx][ny] = ''
 
-        //se utilizar a heuristica bestA* simples
-        if (this.type == 'bestA*') nodeUp.heuristic2 = this.useHeuristic2(nodeUp.puzzle)
+        const puzzleKey = newPuzzle.toString()
+        if (!this.checkPuzzleAlreadyCreated(puzzleKey)) continue
 
-        if (this.checkPuzzleAlreadyCreated(nodeUp.puzzle.toString())) {
-          this.frontier.push(nodeUp)
-          this.createdNodes++
+        const newNode = {
+          cost: challenge.cost + 1,
+          puzzle: newPuzzle,
+          puzzleKey,
+          id: [...challenge.id, this.nodeIdCounter++],
+          heuristic1: this.type === 'a*' ? this.useHeuristic1(newPuzzle) : 0,
+          heuristic2: this.type === 'bestA*' ? this.useHeuristic2(newPuzzle) : 0
         }
+
+        this.frontierSet.add(puzzleKey)
+        this.insertOrdered(newNode)
+        this.createdNodes++
       }
 
-      //Down
-      if (coordenate.x < 2) {
-        nodeDown = JSON.parse(JSON.stringify(challenge))
-        nodeDown.puzzle[coordenate.x][coordenate.y] =
-          nodeDown.puzzle[coordenate.x + 1][coordenate.y]
-        nodeDown.puzzle[coordenate.x + 1][coordenate.y] = ''
-        nodeDown.cost++
-        nodeDown.id.push(this.geraStringAleatoria(3))
-
-        //se utilizar a heuristica a* simples
-        if (this.type == 'a*') nodeDown.heuristic1 = this.useHeuristic1(nodeDown.puzzle)
-
-        //se utilizar a heuristica bestA* simples
-        if (this.type == 'bestA*') nodeDown.heuristic2 = this.useHeuristic2(nodeDown.puzzle)
-
-        if (this.checkPuzzleAlreadyCreated(nodeDown.puzzle.toString())) {
-          this.frontier.push(nodeDown)
-          this.createdNodes++
-        }
-      }
-
-      //Left
-      if (coordenate.y > 0) {
-        nodeLeft = JSON.parse(JSON.stringify(challenge))
-        nodeLeft.puzzle[coordenate.x][coordenate.y] =
-          nodeLeft.puzzle[coordenate.x][coordenate.y - 1]
-        nodeLeft.puzzle[coordenate.x][coordenate.y - 1] = ''
-        nodeLeft.cost++
-        nodeLeft.id.push(this.geraStringAleatoria(3))
-
-        //se utilizar a heuristica a* simples
-        if (this.type == 'a*') nodeLeft.heuristic1 = this.useHeuristic1(nodeLeft.puzzle)
-
-        //se utilizar a heuristica bestA* simples
-        if (this.type == 'bestA*') nodeLeft.heuristic2 = this.useHeuristic2(nodeLeft.puzzle)
-
-        if (this.checkPuzzleAlreadyCreated(nodeLeft.puzzle.toString())) {
-          this.frontier.push(nodeLeft)
-          this.createdNodes++
-        }
-      }
-
-      //Right
-      if (coordenate.y < 2) {
-        nodeRight = JSON.parse(JSON.stringify(challenge))
-        nodeRight.puzzle[coordenate.x][coordenate.y] =
-          nodeRight.puzzle[coordenate.x][coordenate.y + 1]
-        nodeRight.puzzle[coordenate.x][coordenate.y + 1] = ''
-        nodeRight.cost++
-        nodeRight.id.push(this.geraStringAleatoria(3))
-
-        //se utilizar a heuristica a* simples
-        if (this.type == 'a*') nodeRight.heuristic1 = this.useHeuristic1(nodeRight.puzzle)
-
-        //se utilizar a heuristica bestA* simples
-        if (this.type == 'bestA*') nodeRight.heuristic2 = this.useHeuristic2(nodeRight.puzzle)
-
-        if (this.checkPuzzleAlreadyCreated(nodeRight.puzzle.toString())) {
-          this.frontier.push(nodeRight)
-          this.createdNodes++
-        }
-      }
-
-      /* utiliza a função SET do JS, adiciona o atual primeiro da fila, para os visitados.*/
-      this.visited.add(this.frontier[0].puzzle.toString())
-
-      /* adiciona na lista de visitados o atual primeiro da fila*/
-      this.historyVisited.push(this.frontier[0])
-
-      this.visitedNodes++ //incrementa o numero de nodos visitados
-      this.frontier.splice(0, 1) // deleta o atual primeiro da fronteira
+      // Move nodo atual da fronteira para visitados
+      const current = this.frontier[0]
+      this.visited.add(current.puzzleKey)
+      this.frontierSet.delete(current.puzzleKey)
+      this.historyVisited.push(current)
+      this.visitedNodes++
+      this.frontier.splice(0, 1)
     },
 
     /*recebe um toString da Matriz que foi criada com o movimento (up,down,left,right) e verifica se esse puzzle já foi criado. Verifica nos Nodos já visitados e também nos que estão na fronteira*/
 
-    checkPuzzleAlreadyCreated(toString) {
-      //verifica no SET se o nodo já está na lista de visitados;
-      let checkVisited = this.visited.has(toString)
-
-      //verifica se o nodo não está na fronteira
-      const checkFrontier = !!this.frontier.find(i => i.puzzle.toString() === toString)
-
-      //caso não esteja na fronteira e nem na lista de visitados, retorna TRUE
-      if (checkVisited == false && !checkFrontier) {
-        return true
-      } else {
-        return false
-      }
+    checkPuzzleAlreadyCreated(puzzleKey) {
+      return !this.visited.has(puzzleKey) && !this.frontierSet.has(puzzleKey)
     },
 
     // Heuristica A* simples - recebe uma matriz e compara com a META, cada 'pastilha' no lugar errado incrementa em 1
@@ -835,54 +777,14 @@ export default {
       return heuristic
     },
 
-    // método auxiliar para gerar o identificador de cada nodo
-    geraStringAleatoria(tamanho) {
-      let check = false
-      while (!check) {
-        var stringAleatoria = ''
-        var caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-        for (var i = 0; i < tamanho; i++) {
-          stringAleatoria += caracteres.charAt(Math.floor(Math.random() * caracteres.length))
-        }
-        if (!this.generatedIds.has(stringAleatoria)) {
-          check = true
-          this.generatedIds.add(stringAleatoria)
-        }
-      }
-
-      return stringAleatoria
-    },
-
-    //método auxiliar para gerar o final Path do resultado encontrado
+    //método auxiliar para gerar o final Path do resultado encontrado - usa Map para lookup O(1)
     geraFinalPath() {
-      let ids = this.historyVisited[this.historyVisited.length - 1]
-      let path = []
-      ids.id.forEach(id => {
-        let result = this.historyVisited.filter(item => {
-          if (id == item.id[item.id.length - 1]) return item
-        })
-        path.push(result[0])
+      const idToNode = new Map()
+      this.historyVisited.forEach(node => {
+        idToNode.set(node.id[node.id.length - 1], node)
       })
-      this.finalPath = path
-    },
-
-    // tentativa de lista ordenada
-    listaOrdenada(array, item) {
-      let primeiroMaior = { value: '', index: '', checked: false }
-
-      if (this.type == 'uniformCost') {
-        for (let i = 0; i < array.length; i++) {
-          if (array[i].cost > item.cost && !primeiroMaior.checked) {
-            primeiroMaior.value = array[i].cost
-            primeiroMaior.index = i
-            primeiroMaior.checked = true
-            break
-          }
-        }
-      }
-
-      if (!primeiroMaior.value) primeiroMaior.index = array.length // adiciona no começo da array
-      array.splice(primeiroMaior.index, 0, item)
+      const lastNode = this.historyVisited[this.historyVisited.length - 1]
+      this.finalPath = lastNode.id.map(id => idToNode.get(id))
     }
   }
 }
