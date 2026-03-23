@@ -129,7 +129,9 @@
         :meta="meta"
         :type="type"
       />
+
       <AlertDialog v-model="alert" />
+
       <CustomPuzzleDialog
         v-model="customDialog"
         @custom-puzzle-created="handleCustomPuzzleCreated"
@@ -163,6 +165,7 @@ export default {
     AlertDialog,
     CustomPuzzleDialog
   },
+
   data: () => ({
     start: false,
     showPathInfo: false,
@@ -211,7 +214,6 @@ export default {
   created() {
     this.addChallenge()
     this.selectedChallenge = this.challenges[0].puzzle
-    this.initializeSingleSearchState(this.selectedChallenge)
     this.initializeBidirectionalStructures(this.selectedChallenge, this.meta)
   },
 
@@ -236,30 +238,11 @@ export default {
     },
 
     selectedChallenge() {
-      this.initializeSingleSearchState(this.selectedChallenge)
       this.initializeBidirectionalStructures(this.selectedChallenge, this.meta)
     }
   },
 
   methods: {
-    initializeSingleSearchState(puzzle) {
-      this.frontier = []
-      const initialNode = this.buildSingleNode(puzzle, 0, [this.nodeIdCounter++])
-      this.frontier.push(initialNode)
-      this.maxFrontier = 1
-    },
-
-    buildSingleNode(puzzle, cost, idPath) {
-      return {
-        cost,
-        puzzle,
-        puzzleKey: puzzle.toString(),
-        id: idPath,
-        heuristic1: this.computeHeuristic(puzzle, { mode: 'a*', targetPuzzle: this.meta }),
-        heuristic2: this.computeHeuristic(puzzle, { mode: 'bestA*', targetPuzzle: this.meta })
-      }
-    },
-
     buildBidirectionalRootNode(puzzle, targetPuzzle, direction) {
       return {
         direction,
@@ -325,7 +308,6 @@ export default {
       this.start = false
       this.nodeIdCounter = 0
       this.maxFrontier = 0
-      this.initializeSingleSearchState(this.selectedChallenge)
       this.initializeBidirectionalStructures(this.selectedChallenge, this.meta)
       this.visitedNodes = 0
       this.createdNodes = 0

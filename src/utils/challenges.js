@@ -64,11 +64,19 @@ const challenges = [
     ]
   },
   {
-    label: 'Exemplo - 31 movimentos',
+    label: 'Exemplo - 31 movimentos (A)',
     puzzle: [
       ['6', '4', '7'],
       ['8', '5', ''],
       ['3', '2', '1']
+    ]
+  },
+  {
+    label: 'Exemplo - 31 movimentos (B)',
+    puzzle: [
+      ['8', '6', '7'],
+      ['2', '5', '4'],
+      ['3', '', '1']
     ]
   }
 ]
