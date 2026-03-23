@@ -1,5 +1,5 @@
 <template>
-  <v-overlay color="white" opacity="0.85" z-index="1000">
+  <v-overlay :value="true" color="white" opacity="0.85" z-index="1000">
     <div class="loading">
       <span></span>
       <span></span>
@@ -12,8 +12,7 @@
           >Aguarde... isso pode demorar algum tempo...<br /></span></v-chip
       ><br />
       <span class="black--text" style="font-size:0.85rem;"
-        >Se o seu navegador acusar página sem resposta <b>não feche-o</b>,
-        apenas espere :)</span
+        >Se o seu navegador acusar página sem resposta <b>não feche-o</b>, apenas espere :)</span
       >
     </div>
   </v-overlay>
@@ -21,8 +20,8 @@
 
 <script>
 export default {
-  name: 'Loadingg',
-};
+  name: 'Loadingg'
+}
 </script>
 
 <style scoped>

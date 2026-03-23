@@ -326,6 +326,20 @@ export default {
     finalPath: [],
     visited: new Set(), // guardar os nodos visitados em .toString() para comparação
     frontierSet: new Set(), // lookup O(1) para verificar se puzzle já está na fronteira
+    // Estruturas preparadas para Bidirectional A*
+    forwardFrontier: [],
+    forwardFrontierSet: new Set(),
+    forwardVisited: new Set(),
+    backwardFrontier: [],
+    backwardFrontierSet: new Set(),
+    backwardVisited: new Set(),
+    forwardHistoryVisited: [],
+    backwardHistoryVisited: [],
+    cameFromForward: new Map(),
+    cameFromBackward: new Map(),
+    gScoreForward: new Map(),
+    gScoreBackward: new Map(),
+    meetingKey: null,
     nodeIdCounter: 0,
     done: false,
     resolution: [],
@@ -341,17 +355,8 @@ export default {
   created() {
     this.addChallenge()
     this.selectedChallenge = this.challenges[0].puzzle
-    const initialNode = {
-      cost: 0,
-      puzzle: this.selectedChallenge,
-      puzzleKey: this.selectedChallenge.toString(),
-      id: [this.nodeIdCounter++],
-      heuristic1: this.useHeuristic1(this.selectedChallenge),
-      heuristic2: this.useHeuristic2(this.selectedChallenge)
-    }
-    this.frontier.push(initialNode)
-    this.frontierSet.add(initialNode.puzzleKey)
-    this.maxFrontier = 1
+    this.initializeSingleSearchState(this.selectedChallenge)
+    this.initializeBidirectionalStructures(this.selectedChallenge, this.meta)
   },
 
   watch: {
@@ -388,23 +393,72 @@ export default {
 
     //ao selecionar o desafio, ele calcula dados iniciais e envia a fila da fronteira - é o o ponto de partida para a busca
     selectedChallenge() {
-      this.frontier = []
-      this.frontierSet.clear()
-      const initialNode = {
-        cost: 0,
-        puzzle: this.selectedChallenge,
-        puzzleKey: this.selectedChallenge.toString(),
-        id: [this.nodeIdCounter++],
-        heuristic1: this.useHeuristic1(this.selectedChallenge),
-        heuristic2: this.useHeuristic2(this.selectedChallenge)
-      }
-      this.frontier.push(initialNode)
-      this.frontierSet.add(initialNode.puzzleKey)
-      this.maxFrontier = 1
+      this.initializeSingleSearchState(this.selectedChallenge)
+      this.initializeBidirectionalStructures(this.selectedChallenge, this.meta)
     }
   },
 
   methods: {
+    // Mantém invariantes da busca atual (unidirecional) em um único ponto
+    initializeSingleSearchState(puzzle) {
+      this.frontier = []
+      this.frontierSet.clear()
+      const initialNode = this.buildSingleNode(puzzle, 0, [this.nodeIdCounter++])
+      this.frontier.push(initialNode)
+      this.frontierSet.add(initialNode.puzzleKey)
+      this.maxFrontier = 1
+    },
+
+    buildSingleNode(puzzle, cost, idPath) {
+      return {
+        cost,
+        puzzle,
+        puzzleKey: puzzle.toString(),
+        id: idPath,
+        heuristic1: this.computeHeuristic(puzzle, { mode: 'a*', targetPuzzle: this.meta }),
+        heuristic2: this.computeHeuristic(puzzle, { mode: 'bestA*', targetPuzzle: this.meta })
+      }
+    },
+
+    buildBidirectionalRootNode(puzzle, targetPuzzle, direction) {
+      return {
+        direction,
+        cost: 0,
+        puzzle,
+        puzzleKey: puzzle.toString(),
+        heuristic2: this.computeHeuristic(puzzle, { mode: 'bestA*', targetPuzzle })
+      }
+    },
+
+    // Prepara estruturas para Bidirectional A* (ainda não ativa o loop dual)
+    initializeBidirectionalStructures(startPuzzle, goalPuzzle) {
+      this.forwardFrontier = []
+      this.forwardFrontierSet.clear()
+      this.forwardVisited.clear()
+      this.backwardFrontier = []
+      this.backwardFrontierSet.clear()
+      this.backwardVisited.clear()
+      this.forwardHistoryVisited = []
+      this.backwardHistoryVisited = []
+      this.cameFromForward = new Map()
+      this.cameFromBackward = new Map()
+      this.gScoreForward = new Map()
+      this.gScoreBackward = new Map()
+      this.meetingKey = null
+
+      const forwardRoot = this.buildBidirectionalRootNode(startPuzzle, goalPuzzle, 'forward')
+      const backwardRoot = this.buildBidirectionalRootNode(goalPuzzle, startPuzzle, 'backward')
+
+      this.forwardFrontier.push(forwardRoot)
+      this.backwardFrontier.push(backwardRoot)
+      this.forwardFrontierSet.add(forwardRoot.puzzleKey)
+      this.backwardFrontierSet.add(backwardRoot.puzzleKey)
+      this.cameFromForward.set(forwardRoot.puzzleKey, null)
+      this.cameFromBackward.set(backwardRoot.puzzleKey, null)
+      this.gScoreForward.set(forwardRoot.puzzleKey, 0)
+      this.gScoreBackward.set(backwardRoot.puzzleKey, 0)
+    },
+
     addChallenge(challenges = 'all') {
       const type = typeof challenges
       if (type === 'string' && challenges === 'all') {
@@ -477,20 +531,10 @@ export default {
     handleReset() {
       this.start = false
       this.selectedChallenge = this.challenges[0].puzzle
-      this.frontier = []
-      this.frontierSet.clear()
       this.nodeIdCounter = 0
       this.maxFrontier = 0
-      const initialNode = {
-        cost: 0,
-        puzzle: this.selectedChallenge,
-        puzzleKey: this.selectedChallenge.toString(),
-        id: [this.nodeIdCounter++],
-        heuristic1: this.useHeuristic1(this.selectedChallenge),
-        heuristic2: this.useHeuristic2(this.selectedChallenge)
-      }
-      this.frontier.push(initialNode)
-      this.frontierSet.add(initialNode.puzzleKey)
+      this.initializeSingleSearchState(this.selectedChallenge)
+      this.initializeBidirectionalStructures(this.selectedChallenge, this.meta)
       this.visitedNodes = 0
       this.createdNodes = 0
       this.done = false
@@ -532,43 +576,25 @@ export default {
     async handleStart() {
       this.loading = true
       this.start = true
+      await this.yieldToBrowser()
 
       let timeStart = new Date().getTime()
 
       try {
-        await new Promise(resolve => {
-          setTimeout(() => {
-            const metaKey = this.meta.toString()
+        const metaKey = this.meta.toString()
 
-            //enquanto o primeiro elemento da fronteira for diferente do objetivo, o laço é realizado
-            while (this.frontier[0].puzzleKey !== metaKey) {
-              this.iterator++
-              let coordenates = this.foundEmptySpace(this.frontier[0])
-              this.checkMovements(coordenates, this.frontier[0])
-              if (this.frontier.length > this.maxFrontier) this.maxFrontier = this.frontier.length
-            }
-
-            // se o primeiro item da fronteira for igual ao objetivo ele encerra a busca e retorna os resultados
-            if (this.frontier[0].puzzleKey === metaKey) {
-              this.done = true
-              this.visited.add(this.frontier[0].puzzleKey)
-              this.frontierSet.delete(this.frontier[0].puzzleKey)
-              this.historyVisited.push(this.frontier[0])
-              this.geraFinalPath()
-              this.resolution = this.finalPath[0]
-              this.visitedNodes++
-              this.frontier.splice(0, 1)
-            }
-
-            resolve()
-          }, 0)
-        })
+        if (this.type === 'bestA*') this.runBidirectionalBestAStar(metaKey)
+        else await this.runSingleDirectionSearch(metaKey)
       } catch (e) {
         this.alert = true
       } finally {
         this.calcSpendedTime(timeStart)
         this.loading = false
       }
+    },
+
+    yieldToBrowser() {
+      return new Promise(resolve => setTimeout(resolve, 0))
     },
 
     calcSpendedTime(timeStart) {
@@ -592,12 +618,352 @@ export default {
       console.log(`Tempo de execução de todas iterações: ${elapsedTime}`)
     },
 
+    async runSingleDirectionSearch(metaKey) {
+      // Garante execução isolada dos modos unidirecionais sem resquício do bidirecional
+      this.initializeSingleSearchState(this.selectedChallenge)
+      this.frontierSet.clear()
+      this.frontierSet.add(this.frontier[0].puzzleKey)
+      this.visited.clear()
+      this.historyVisited = []
+      this.finalPath = []
+      this.done = false
+      this.createdNodes = 0
+      this.visitedNodes = 0
+      this.iterator = 0
+      this.maxFrontier = this.frontier.length
+
+      // Evita congelar a UI em cenários mais longos de A*
+      const chunkSize = 600
+      const iterationLimit = this.type === 'a*' ? 300000 : 200000
+
+      // enquanto o primeiro elemento da fronteira for diferente do objetivo, o laço é realizado
+      while (this.frontier.length > 0 && this.frontier[0].puzzleKey !== metaKey) {
+        for (let i = 0; i < chunkSize; i++) {
+          if (this.frontier.length === 0 || this.frontier[0].puzzleKey === metaKey) break
+
+          this.iterator++
+          if (this.iterator > iterationLimit) {
+            throw new Error('Limite de iterações atingido na busca unidirecional')
+          }
+
+          let coordenates = this.foundEmptySpace(this.frontier[0])
+          this.checkMovements(coordenates, this.frontier[0])
+          if (this.frontier.length > this.maxFrontier) this.maxFrontier = this.frontier.length
+        }
+
+        await this.yieldToBrowser()
+      }
+
+      // se o primeiro item da fronteira for igual ao objetivo ele encerra a busca e retorna os resultados
+      if (this.frontier.length > 0 && this.frontier[0].puzzleKey === metaKey) {
+        this.done = true
+        this.visited.add(this.frontier[0].puzzleKey)
+        this.frontierSet.delete(this.frontier[0].puzzleKey)
+        this.historyVisited.push(this.frontier[0])
+        this.geraFinalPath()
+        this.resolution = this.finalPath[0]
+        this.visitedNodes++
+        this.frontier.splice(0, 1)
+        return
+      }
+
+      throw new Error('Busca unidirecional terminou sem solução na fronteira')
+    },
+
+    runBidirectionalBestAStar(metaKey) {
+      const startKey = this.selectedChallenge.toString()
+      const iterationLimit = 250000
+
+      // Sempre reinicia o estado dual antes de processar
+      this.initializeBidirectionalStructures(this.selectedChallenge, this.meta)
+      this.frontier = []
+      this.historyVisited = []
+      this.visited.clear()
+      this.frontierSet.clear()
+      this.finalPath = []
+      this.done = false
+      this.createdNodes = 0
+      this.visitedNodes = 0
+      this.iterator = 0
+      this.maxFrontier =
+        this.forwardFrontier.length + this.backwardFrontier.length > 0
+          ? this.forwardFrontier.length + this.backwardFrontier.length
+          : 0
+
+      if (startKey === metaKey) {
+        this.meetingKey = startKey
+        this.finalPath = this.reconstructBidirectionalFinalPath(startKey)
+        this.done = true
+        this.resolution = this.finalPath[0]
+        return
+      }
+
+      let bestPathCost = Infinity
+      let bestMeetingKey = null
+
+      while (this.forwardFrontier.length > 0 && this.backwardFrontier.length > 0) {
+        this.iterator++
+        if (this.iterator > iterationLimit) {
+          throw new Error('Limite de iterações atingido no Bidirectional A*')
+        }
+
+        const forwardTop = this.peekValidBidirectionalNode('forward')
+        const backwardTop = this.peekValidBidirectionalNode('backward')
+        if (!forwardTop || !backwardTop) break
+
+        const forwardTopCost = this.getBidirectionalNodeScore(forwardTop)
+        const backwardTopCost = this.getBidirectionalNodeScore(backwardTop)
+        const lowerBound = Math.min(forwardTopCost, backwardTopCost)
+
+        // Encerra quando o limite inferior não consegue melhorar o melhor encontro encontrado
+        if (bestPathCost !== Infinity && lowerBound >= bestPathCost) break
+
+        const sideToExpand = forwardTopCost <= backwardTopCost ? 'forward' : 'backward'
+        const expansion = this.expandBidirectionalSide(sideToExpand)
+        if (!expansion) continue
+
+        if (expansion.meetingCost < bestPathCost) {
+          bestPathCost = expansion.meetingCost
+          bestMeetingKey = expansion.meetingKey
+        }
+
+        const currentCombinedFrontier = this.forwardFrontier.length + this.backwardFrontier.length
+        if (currentCombinedFrontier > this.maxFrontier) {
+          this.maxFrontier = currentCombinedFrontier
+        }
+      }
+
+      if (!bestMeetingKey) {
+        throw new Error('Algoritmo bidirecional não encontrou caminho até a meta')
+      }
+
+      this.meetingKey = bestMeetingKey
+      this.finalPath = this.reconstructBidirectionalFinalPath(bestMeetingKey)
+      this.done =
+        this.finalPath.length > 0 && this.finalPath[this.finalPath.length - 1].puzzleKey === metaKey
+      if (!this.done) {
+        throw new Error('Reconstrução do caminho bidirecional não chegou na meta')
+      }
+
+      this.historyVisited = [...this.forwardHistoryVisited, ...this.backwardHistoryVisited]
+      this.frontier = this.mergeBidirectionalFrontiersForUI()
+      this.resolution = this.finalPath[0]
+      this.visitedNodes = this.forwardHistoryVisited.length + this.backwardHistoryVisited.length
+    },
+
+    getBidirectionalNodeScore(node) {
+      return (node?.cost || 0) + (node?.heuristic2 || 0)
+    },
+
+    insertOrderedOnFrontier(frontier, node, scoreGetter) {
+      const value = scoreGetter(node)
+      let low = 0
+      let high = frontier.length
+      while (low < high) {
+        const mid = (low + high) >> 1
+        if (scoreGetter(frontier[mid]) <= value) {
+          low = mid + 1
+        } else {
+          high = mid
+        }
+      }
+      frontier.splice(low, 0, node)
+    },
+
+    peekValidBidirectionalNode(side) {
+      const frontier = side === 'forward' ? this.forwardFrontier : this.backwardFrontier
+      const gScoreMap = side === 'forward' ? this.gScoreForward : this.gScoreBackward
+      while (frontier.length > 0) {
+        const node = frontier[0]
+        const knownBest = gScoreMap.get(node.puzzleKey)
+        if (knownBest === undefined || node.cost !== knownBest) {
+          frontier.splice(0, 1)
+          continue
+        }
+        return node
+      }
+      return null
+    },
+
+    popValidBidirectionalNode(side) {
+      const frontier = side === 'forward' ? this.forwardFrontier : this.backwardFrontier
+      const frontierSet = side === 'forward' ? this.forwardFrontierSet : this.backwardFrontierSet
+      const visitedSet = side === 'forward' ? this.forwardVisited : this.backwardVisited
+      const history = side === 'forward' ? this.forwardHistoryVisited : this.backwardHistoryVisited
+      const gScoreMap = side === 'forward' ? this.gScoreForward : this.gScoreBackward
+
+      const node = this.peekValidBidirectionalNode(side)
+      if (!node) return null
+
+      frontier.splice(0, 1)
+      frontierSet.delete(node.puzzleKey)
+      visitedSet.add(node.puzzleKey)
+      history.push(node)
+      this.visited.add(node.puzzleKey)
+      this.visitedNodes++
+
+      const knownBest = gScoreMap.get(node.puzzleKey)
+      if (knownBest === undefined || node.cost !== knownBest) return null
+      return node
+    },
+
+    buildBidirectionalSearchNode(puzzle, cost, targetPuzzle, direction) {
+      return {
+        direction,
+        cost,
+        puzzle,
+        puzzleKey: puzzle.toString(),
+        id: [this.nodeIdCounter++],
+        heuristic1: this.computeHeuristic(puzzle, { mode: 'a*', targetPuzzle }),
+        heuristic2: this.computeHeuristic(puzzle, { mode: 'bestA*', targetPuzzle })
+      }
+    },
+
+    getNeighborPuzzles(puzzle) {
+      const position = this.foundEmptySpace({ puzzle })
+      const directions = [
+        { dx: -1, dy: 0 },
+        { dx: 1, dy: 0 },
+        { dx: 0, dy: -1 },
+        { dx: 0, dy: 1 }
+      ]
+      const neighbors = []
+
+      for (const { dx, dy } of directions) {
+        const nx = position.x + dx
+        const ny = position.y + dy
+        if (nx < 0 || nx > 2 || ny < 0 || ny > 2) continue
+
+        const newPuzzle = puzzle.map(row => [...row])
+        newPuzzle[position.x][position.y] = newPuzzle[nx][ny]
+        newPuzzle[nx][ny] = ''
+        neighbors.push(newPuzzle)
+      }
+
+      return neighbors
+    },
+
+    expandBidirectionalSide(side) {
+      const currentNode = this.popValidBidirectionalNode(side)
+      if (!currentNode) return null
+
+      const currentKey = currentNode.puzzleKey
+      const currentCost = currentNode.cost
+
+      const currentG = side === 'forward' ? this.gScoreForward : this.gScoreBackward
+      const oppositeG = side === 'forward' ? this.gScoreBackward : this.gScoreForward
+      const frontier = side === 'forward' ? this.forwardFrontier : this.backwardFrontier
+      const frontierSet = side === 'forward' ? this.forwardFrontierSet : this.backwardFrontierSet
+      const cameFrom = side === 'forward' ? this.cameFromForward : this.cameFromBackward
+      const visitedSet = side === 'forward' ? this.forwardVisited : this.backwardVisited
+      const targetPuzzle = side === 'forward' ? this.meta : this.selectedChallenge
+      const direction = side
+
+      let bestMeetingCost = Infinity
+      let bestMeetingKey = null
+
+      if (oppositeG.has(currentKey)) {
+        bestMeetingCost = currentCost + oppositeG.get(currentKey)
+        bestMeetingKey = currentKey
+      }
+
+      const neighbors = this.getNeighborPuzzles(currentNode.puzzle)
+      for (const neighborPuzzle of neighbors) {
+        const neighborKey = neighborPuzzle.toString()
+        const tentativeG = currentCost + 1
+        const existingG = currentG.get(neighborKey)
+
+        if (visitedSet.has(neighborKey) && existingG !== undefined && tentativeG >= existingG) {
+          continue
+        }
+
+        if (existingG !== undefined && tentativeG >= existingG) continue
+
+        currentG.set(neighborKey, tentativeG)
+        cameFrom.set(neighborKey, currentKey)
+
+        const neighborNode = this.buildBidirectionalSearchNode(
+          neighborPuzzle,
+          tentativeG,
+          targetPuzzle,
+          direction
+        )
+        this.insertOrderedOnFrontier(frontier, neighborNode, this.getBidirectionalNodeScore)
+        frontierSet.add(neighborKey)
+        this.frontierSet.add(neighborKey)
+        this.createdNodes++
+
+        if (oppositeG.has(neighborKey)) {
+          const candidateCost = tentativeG + oppositeG.get(neighborKey)
+          if (candidateCost < bestMeetingCost) {
+            bestMeetingCost = candidateCost
+            bestMeetingKey = neighborKey
+          }
+        }
+      }
+
+      return {
+        meetingCost: bestMeetingCost,
+        meetingKey: bestMeetingKey
+      }
+    },
+
+    puzzleFromKey(key) {
+      const values = key.split(',')
+      return [
+        [values[0], values[1], values[2]],
+        [values[3], values[4], values[5]],
+        [values[6], values[7], values[8]]
+      ]
+    },
+
+    reconstructChain(cameFrom, endKey) {
+      const chain = []
+      let cursor = endKey
+      while (cursor !== null && cursor !== undefined) {
+        chain.push(cursor)
+        cursor = cameFrom.get(cursor)
+      }
+      return chain
+    },
+
+    reconstructBidirectionalFinalPath(meetingKey) {
+      const forwardChainMeetingToStart = this.reconstructChain(this.cameFromForward, meetingKey)
+      const backwardChainMeetingToGoal = this.reconstructChain(this.cameFromBackward, meetingKey)
+
+      const startToMeeting = [...forwardChainMeetingToStart].reverse()
+      const meetingToGoal = backwardChainMeetingToGoal.slice(1)
+      const fullKeyPath = [...startToMeeting, ...meetingToGoal]
+
+      return fullKeyPath.map((key, index) => {
+        const puzzle = this.puzzleFromKey(key)
+        return {
+          cost: index,
+          puzzle,
+          puzzleKey: key,
+          id: Array.from({ length: index + 1 }, (_, i) => i),
+          heuristic1: this.computeHeuristic(puzzle, { mode: 'a*', targetPuzzle: this.meta }),
+          heuristic2: this.computeHeuristic(puzzle, { mode: 'bestA*', targetPuzzle: this.meta })
+        }
+      })
+    },
+
+    mergeBidirectionalFrontiersForUI() {
+      return [...this.forwardFrontier, ...this.backwardFrontier].sort(
+        (a, b) => this.getBidirectionalNodeScore(a) - this.getBidirectionalNodeScore(b)
+      )
+    },
+
     // Métodos para o ALGORITMO
 
     // Retorna o valor de custo usado para ordenação, conforme o tipo de busca
     getCostValue(node) {
-      if (this.type === 'uniformCost') return node.cost
-      if (this.type === 'a*') return node.cost + node.heuristic1
+      return this.getCostValueByType(node, this.type)
+    },
+
+    getCostValueByType(node, searchType) {
+      if (searchType === 'uniformCost') return node.cost
+      if (searchType === 'a*') return node.cost + node.heuristic1
       return node.cost + node.heuristic2
     },
 
@@ -657,8 +1023,11 @@ export default {
           puzzle: newPuzzle,
           puzzleKey,
           id: [...challenge.id, this.nodeIdCounter++],
-          heuristic1: this.type === 'a*' ? this.useHeuristic1(newPuzzle) : 0,
-          heuristic2: this.type === 'bestA*' ? this.useHeuristic2(newPuzzle) : 0
+          heuristic1: this.computeHeuristic(newPuzzle, { mode: 'a*', targetPuzzle: this.meta }),
+          heuristic2: this.computeHeuristic(newPuzzle, {
+            mode: 'bestA*',
+            targetPuzzle: this.meta
+          })
         }
 
         this.frontierSet.add(puzzleKey)
@@ -683,35 +1052,51 @@ export default {
 
     // Heuristica A* simples - recebe uma matriz e compara com a META, cada 'pastilha' no lugar errado incrementa em 1
     useHeuristic1(matriz) {
+      return this.getMisplacedTilesDistance(matriz, this.meta)
+    },
+
+    getMisplacedTilesDistance(matriz, targetPuzzle) {
       let heuristic = 0
 
-      if (matriz[0][0] !== this.meta[0][0]) heuristic++
-      if (matriz[0][1] !== this.meta[0][1]) heuristic++
-      if (matriz[0][2] !== this.meta[0][2]) heuristic++
-      if (matriz[1][0] !== this.meta[1][0]) heuristic++
-      if (matriz[1][1] !== this.meta[1][1]) heuristic++
-      if (matriz[1][2] !== this.meta[1][2]) heuristic++
-      if (matriz[2][0] !== this.meta[2][0]) heuristic++
-      if (matriz[2][1] !== this.meta[2][1]) heuristic++
-      if (matriz[2][2] !== this.meta[2][2]) heuristic++
+      if (matriz[0][0] !== '' && matriz[0][0] !== targetPuzzle[0][0]) heuristic++
+      if (matriz[0][1] !== '' && matriz[0][1] !== targetPuzzle[0][1]) heuristic++
+      if (matriz[0][2] !== '' && matriz[0][2] !== targetPuzzle[0][2]) heuristic++
+      if (matriz[1][0] !== '' && matriz[1][0] !== targetPuzzle[1][0]) heuristic++
+      if (matriz[1][1] !== '' && matriz[1][1] !== targetPuzzle[1][1]) heuristic++
+      if (matriz[1][2] !== '' && matriz[1][2] !== targetPuzzle[1][2]) heuristic++
+      if (matriz[2][0] !== '' && matriz[2][0] !== targetPuzzle[2][0]) heuristic++
+      if (matriz[2][1] !== '' && matriz[2][1] !== targetPuzzle[2][1]) heuristic++
+      if (matriz[2][2] !== '' && matriz[2][2] !== targetPuzzle[2][2]) heuristic++
 
       return heuristic
     },
 
     //Melhor Heurística - recebe uma matriz e compara com a META, usando distância de Manhattan
     useHeuristic2(matriz) {
-      let heuristic = 0
+      return this.getManhattanDistance(matriz, this.meta)
+    },
 
-      const goalMap = {
-        1: [0, 0],
-        2: [0, 1],
-        3: [0, 2],
-        4: [1, 0],
-        5: [1, 1],
-        6: [1, 2],
-        7: [2, 0],
-        8: [2, 1]
+    computeHeuristic(matriz, { mode = this.type, targetPuzzle = this.meta } = {}) {
+      if (mode === 'a*') return this.getMisplacedTilesDistance(matriz, targetPuzzle)
+      if (mode === 'bestA*') return this.getManhattanDistance(matriz, targetPuzzle)
+      return 0
+    },
+
+    buildGoalMap(targetPuzzle) {
+      const goalMap = {}
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          const value = targetPuzzle[i][j]
+          if (value === '') continue
+          goalMap[value] = [i, j]
+        }
       }
+      return goalMap
+    },
+
+    getManhattanDistance(matriz, targetPuzzle) {
+      let heuristic = 0
+      const goalMap = this.buildGoalMap(targetPuzzle)
 
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
