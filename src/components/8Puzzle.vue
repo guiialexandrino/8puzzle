@@ -1,32 +1,5 @@
 <template>
   <v-container>
-    <!-- <v-row>
-      <v-col class="my-1" cols="12" align="center">
-        <h1 class="display-2 font-weight-bold mb-3">
-          8-PUZZLE
-        </h1>
-        <p class="subheading font-weight-regular">
-          Trabalho disciplina <b>INE 5633</b> - Sistemas inteligentes.<br />
-          <span style="font-size:0.9rem"
-            >Desenvolvido por: <b>Guilherme Alexandrino</b></span
-          >
-        </p>
-        <v-row justify="center" no-gutters class="mt-8 mb-4"
-          ><v-icon class="pr-2 pb-5" small>mdi-cog</v-icon
-          ><span>
-            <b>Nº máximo de iterações: </b>
-          </span>
-          <v-select
-            :disabled="type == 'bestA*'"
-            style="max-width:5%; min-width: 80px"
-            class="pl-2 ma-0"
-            v-model="iterations"
-            :items="iterationOptions"
-            dense
-          />
-        </v-row>
-      </v-col>
-    </v-row> -->
     <v-card class="py-8 px-10" elevation="2">
       <v-row>
         <v-col class="my-1" cols="12" align="center">
@@ -37,20 +10,6 @@
             Trabalho disciplina <b>INE 5633</b> - Sistemas inteligentes.<br />
             <span style="font-size:0.9rem">Desenvolvido por: <b>Guilherme Alexandrino</b></span>
           </p>
-          <v-row justify="center" no-gutters class="mt-8 mb-4"
-            ><v-icon class="pr-2 pb-5" small>mdi-cog</v-icon
-            ><span>
-              <b>Nº máximo de iterações: </b>
-            </span>
-            <v-select
-              :disabled="type == 'bestA*'"
-              style="max-width:5%; min-width: 80px"
-              class="pl-2 ma-0"
-              v-model="iterations"
-              :items="iterationOptions"
-              dense
-            />
-          </v-row>
           <v-row justify="center" no-gutters>
             <v-col cols="6" sm="6" md="4" lg="4" xl="3">
               <v-select
@@ -270,7 +229,7 @@ export default {
     start: false,
     showPathInfo: false,
     showFrontierInfo: false,
-    type: 'uniformCost',
+    type: 'bestA*',
     typeOptions: [
       { type: 'uniformCost', label: 'Custo Uniforme' },
       { type: 'a*', label: 'A* - Heurística Simples' },
@@ -370,8 +329,6 @@ export default {
     done: false,
     resolution: [],
     iterator: 0,
-    iterations: 2000,
-    iterationOptions: [2000, 3000, 4000, 5000, 10000, 30000],
     alert: false,
     customDialog: false,
     newCustomPuzzle: '',
@@ -382,11 +339,7 @@ export default {
   }),
 
   created() {
-    //FRONTEND
-    this.challengeByAlgorithm.push(this.challenges[0])
-    this.challengeByAlgorithm.push(this.challenges[1])
-    this.challengeByAlgorithm.push(this.challenges[2])
-    this.challengeByAlgorithm.push(this.challenges[3])
+    this.addChallenge()
     this.selectedChallenge = this.challenges[0].puzzle
     const initialNode = {
       cost: 0,
@@ -407,11 +360,7 @@ export default {
     type() {
       if (this.type == 'uniformCost') {
         this.challengeByAlgorithm = []
-        this.iterations = 2000
-        this.challengeByAlgorithm.push(this.challenges[0])
-        this.challengeByAlgorithm.push(this.challenges[1])
-        this.challengeByAlgorithm.push(this.challenges[2])
-        this.challengeByAlgorithm.push(this.challenges[3])
+        this.addChallenge([0, 1, 2, 3])
 
         let check = 0
         this.challengeByAlgorithm.forEach(item => {
@@ -421,13 +370,8 @@ export default {
         if (check == 0) this.selectedChallenge = this.challenges[0].puzzle
       }
       if (this.type == 'a*') {
-        this.iterations = 2000
         this.challengeByAlgorithm = []
-        this.challengeByAlgorithm.push(this.challenges[0])
-        this.challengeByAlgorithm.push(this.challenges[1])
-        this.challengeByAlgorithm.push(this.challenges[2])
-        this.challengeByAlgorithm.push(this.challenges[3])
-        this.challengeByAlgorithm.push(this.challenges[4])
+        this.addChallenge([0, 1, 2, 3, 4])
 
         let check = 0
         this.challengeByAlgorithm.forEach(item => {
@@ -438,16 +382,7 @@ export default {
       }
       if (this.type == 'bestA*') {
         this.challengeByAlgorithm = []
-        this.iterations = 30000
-        this.challengeByAlgorithm.push(this.challenges[0])
-        this.challengeByAlgorithm.push(this.challenges[1])
-        this.challengeByAlgorithm.push(this.challenges[2])
-        this.challengeByAlgorithm.push(this.challenges[3])
-        this.challengeByAlgorithm.push(this.challenges[4])
-        this.challengeByAlgorithm.push(this.challenges[5])
-        this.challengeByAlgorithm.push(this.challenges[6])
-        this.challengeByAlgorithm.push(this.challenges[7])
-        this.challengeByAlgorithm.push(this.challenges[8])
+        this.addChallenge()
       }
     },
 
@@ -470,8 +405,20 @@ export default {
   },
 
   methods: {
-    /* FRONTEND MÉTODOS - métodos referentes a interação com a tela e usuário */
+    addChallenge(challenges = 'all') {
+      const type = typeof challenges
+      if (type === 'string' && challenges === 'all') {
+        const availableChallenges = this.challenges.length
+        for (let i = 0; i < availableChallenges; i++)
+          this.challengeByAlgorithm.push(this.challenges[i])
+      } else if (Array.isArray(challenges) && challenges.every(v => typeof v === 'number')) {
+        challenges.forEach(v => {
+          this.challengeByAlgorithm.push(this.challenges[v])
+        })
+      }
+    },
 
+    /* FRONTEND MÉTODOS - métodos referentes a interação com a tela e usuário */
     customPuzzle() {
       this.customDialog = true
     },
@@ -594,17 +541,8 @@ export default {
         //enquanto o primeiro elemento da fronteira for diferente do objetivo, o laço é realizado
         while (this.frontier[0].puzzleKey !== metaKey) {
           this.iterator++
-
           let coordenates = this.foundEmptySpace(this.frontier[0])
-
           this.checkMovements(coordenates, this.frontier[0])
-
-          if (this.iterator > this.iterations) {
-            this.loading = false
-            this.alert = true
-            return
-          }
-
           if (this.frontier.length > this.maxFrontier) this.maxFrontier = this.frontier.length
         }
 
